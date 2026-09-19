@@ -1,12 +1,28 @@
-# Local development only: backing services (Postgres + MinIO), no app
-# containers. Run the API and frontend natively per the README's "Local
-# development" section — they'll talk to these over localhost, which also
+# Local development. Two ways to use this file:
+#
+# 1. `docker compose up -d` (default, no profile) — just the backing services
+#    (Postgres + MinIO) with working defaults and no .env file required. Run
+#    the API and frontend natively against them per the README's "Local
+#    development" section — best for active backend/frontend work (hot
+#    reload, debugger attach).
+#
+# 2. `docker compose --profile full up -d --build` — the whole app
+#    containerized (Postgres, MinIO, API, web), for a one-command local
+#    deployment when you just want the app running, not to edit it. Also
+#    seeds a dev-only Admin (phone +10000000000) on first startup so you can
+#    log straight in; its OTP code is printed to `docker compose logs -f
+#    api` (SMS is stubbed to the console in this app, per project decision).
+#
+# Postgres/MinIO ports are published to localhost either way, which also
 # means pre-signed MinIO URLs handed to the browser and URLs the API itself
 # uses resolve to the same place (http://localhost:9000), with no
-# container-hostname-vs-browser mismatch to work around.
+# container-hostname-vs-browser mismatch to work around. The `api` service
+# uses host networking to get the same "localhost" view as a natively-run
+# API would (see the S3 pre-signed URL note in the `api` service below) —
+# Linux-only; on Mac/Windows just run the API natively instead (option 1).
 #
-# For the production stack (API/web containers, no published ports, meant to
-# be deployed via Dokploy), see docker-compose.dokploy.yml.
+# For the production stack (meant to be deployed via Dokploy), see
+# docker-compose.dokploy.yml.
 services:
   postgres:
     image: postgres:16-alpine
@@ -60,7 +76,62 @@ services:
       "
     restart: on-failure
 
+  # --- everything below only starts with `--profile full` ---
+
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: backend/src/RecordingApp.Api/Dockerfile
+    restart: unless-stopped
+    # Host networking so "localhost:9000" means the same thing to the API
+    # container as it does to your browser — the API embeds S3:ServiceUrl's
+    # host directly into the pre-signed URLs it hands to the browser, so
+    # both sides must resolve it the same way. Linux only.
+    network_mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Postgres: Host=localhost;Port=5432;Database=${POSTGRES_DB:-recordingapp};Username=${POSTGRES_USER:-recordingapp};Password=${POSTGRES_PASSWORD:-recordingapp}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-local-dev-only-insecure-signing-key-do-not-use-in-prod}
+      Jwt__Issuer: RecordingApp
+      Jwt__Audience: RecordingApp
+      S3__Region: us-east-1
+      S3__ServiceUrl: http://localhost:9000
+      S3__ForcePathStyle: "true"
+      S3__AccessKey: ${MINIO_ROOT_USER:-recordingapp}
+      S3__SecretKey: ${MINIO_ROOT_PASSWORD:-recordingapp-dev-secret}
+      S3__PhotosBucket: ${S3_PHOTOS_BUCKET:-photos}
+      S3__AudioBucket: ${S3_AUDIO_BUCKET:-audio}
+      Smtp__Username: ${GMAIL_ADDRESS:-}
+      Smtp__AppPassword: ${GMAIL_APP_PASSWORD:-}
+      Smtp__FromAddress: ${GMAIL_ADDRESS:-}
+      App__WebBaseUrl: http://localhost:8081
+      Cors__AllowedOrigins__0: http://localhost:8081
+      Cors__AllowedOrigins__1: http://localhost:5173
+      # Dev-only bootstrap Admin so `--profile full` is immediately usable —
+      # sign in with this phone number; the OTP is printed to this
+      # container's logs (`docker compose logs -f api`), not actually sent.
+      # Override BOOTSTRAP_ADMIN_EMAIL/PHONE to use your own instead.
+      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      Bootstrap__AdminPhoneNumber: ${BOOTSTRAP_ADMIN_PHONE:-+10000000000}
+
+  web:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8081:80" # http://localhost:8081
+
 volumes:
   postgres_data:
   minio_data:
-kwakuDevSrvo6!

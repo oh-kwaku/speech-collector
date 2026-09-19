@@ -14,8 +14,10 @@ no names or other PII are ever collected.
 
 ## Local development
 
-`docker-compose.yml` at the repo root starts just the backing services
-(Postgres + MinIO) with working defaults and no `.env` file required:
+`docker-compose.yml` at the repo root supports two ways to run this locally:
+
+**Option A — backing services only** (default, best for active development —
+hot reload, debugger attach). No `.env` file required:
 
 ```bash
 docker compose up -d
@@ -56,6 +58,23 @@ cp .env.example .env   # points VITE_API_BASE_URL at the API
 npm install
 npm run dev
 ```
+
+**Option B — the whole app containerized** (Postgres, MinIO, API, web), for
+when you just want the app running rather than to edit it:
+
+```bash
+docker compose --profile full up -d --build
+```
+
+This builds and runs everything, including the API/frontend Dockerfiles used
+for production, at `http://localhost:8081`. It also seeds a dev-only Admin
+(phone `+10000000000`, works out of the box since SMS is stubbed to the
+console per project decision) so you can log in immediately — read the OTP
+code from `docker compose logs -f api`. Override `BOOTSTRAP_ADMIN_EMAIL` /
+`BOOTSTRAP_ADMIN_PHONE` (and any other var in `.env.example`) via a root
+`.env` file to customize. The `api` service uses Docker's host networking so
+its pre-signed S3 URLs resolve the same way for the container and your
+browser — Linux only; on Mac/Windows use Option A instead.
 
 ## Tests
 

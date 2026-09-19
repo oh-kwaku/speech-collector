@@ -145,9 +145,16 @@ exported as training data.
   pre-signed URLs the browser must resolve directly; the MinIO admin console
   is intentionally not exposed via a domain (reach it via SSH port
   forwarding). `docker-compose.yml` (plain, no Dokploy) is separate and only
-  for local dev — just Postgres + MinIO backing services with working
-  defaults, no `.env` needed; the API/frontend run natively against it, per
-  the README. (2026-09-17)
+  for local dev. Default (`docker compose up -d`, no `.env` needed) starts
+  just Postgres + MinIO backing services; the API/frontend run natively
+  against it, per the README. (2026-09-17) A `full` profile (`docker compose
+  --profile full up -d --build`) additionally containerizes the API/web
+  themselves (via the same Dockerfiles used for production) for a
+  one-command local deployment when you just want the app running rather
+  than to edit it — seeds a dev-only phone-OTP Admin so it's immediately
+  usable, and uses host networking on the `api` service (Linux-only) since
+  the app's S3 pre-signed URLs need the same hostname to resolve for both
+  the container and the browser. (2026-09-19)
 
 ## Where things live
 
