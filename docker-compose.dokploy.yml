@@ -67,8 +67,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: backend/src/RecordingApp.Api/Dockerfile
+      context: ./backend
+      dockerfile: src/RecordingApp.Api/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -100,8 +100,8 @@ services:
 
   web:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
     restart: unless-stopped
