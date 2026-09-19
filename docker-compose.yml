@@ -81,8 +81,8 @@ services:
   api:
     profiles: ["full"]
     build:
-      context: .
-      dockerfile: backend/src/RecordingApp.Api/Dockerfile
+      context: ./backend
+      dockerfile: src/RecordingApp.Api/Dockerfile
     restart: unless-stopped
     # Host networking so "localhost:9000" means the same thing to the API
     # container as it does to your browser — the API embeds S3:ServiceUrl's
@@ -122,8 +122,8 @@ services:
   web:
     profiles: ["full"]
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
+      context: ./frontend
+      dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: http://localhost:8080
     restart: unless-stopped
