@@ -68,7 +68,7 @@ services:
   api:
     build:
       context: ./backend
-      dockerfile: src/RecordingApp.Api/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:

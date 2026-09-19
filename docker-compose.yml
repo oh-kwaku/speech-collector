@@ -82,7 +82,7 @@ services:
     profiles: ["full"]
     build:
       context: ./backend
-      dockerfile: src/RecordingApp.Api/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     # Host networking so "localhost:9000" means the same thing to the API
     # container as it does to your browser — the API embeds S3:ServiceUrl's
