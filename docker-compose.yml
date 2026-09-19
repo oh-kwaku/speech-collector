@@ -1,0 +1,66 @@
+# Local development only: backing services (Postgres + MinIO), no app
+# containers. Run the API and frontend natively per the README's "Local
+# development" section — they'll talk to these over localhost, which also
+# means pre-signed MinIO URLs handed to the browser and URLs the API itself
+# uses resolve to the same place (http://localhost:9000), with no
+# container-hostname-vs-browser mismatch to work around.
+#
+# For the production stack (API/web containers, no published ports, meant to
+# be deployed via Dokploy), see docker-compose.dokploy.yml.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-recordingapp}
+      POSTGRES_USER: ${POSTGRES_USER:-recordingapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-recordingapp}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-recordingapp}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-recordingapp-dev-secret}
+    ports:
+      - "9000:9000" # S3 API — point S3:ServiceUrl at http://localhost:9000
+      - "9001:9001" # Web console — http://localhost:9001
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-recordingapp}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-recordingapp-dev-secret}
+      S3_PHOTOS_BUCKET: ${S3_PHOTOS_BUCKET:-photos}
+      S3_AUDIO_BUCKET: ${S3_AUDIO_BUCKET:-audio}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\" &&
+      mc mb -p \"local/$$S3_PHOTOS_BUCKET\" \"local/$$S3_AUDIO_BUCKET\"
+      "
+    restart: on-failure
+
+volumes:
+  postgres_data:
+  minio_data:
+kwakuDevSrvo6!

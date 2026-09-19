@@ -1,0 +1,111 @@
+# Production stack for deployment via Dokploy (docker.com/dokploy) on a VPS,
+# built directly from this GitHub repo (Dokploy runs `docker compose build`
+# against the `build:` sections below — no image registry involved).
+#
+# No Caddy here and no published ports: Dokploy runs its own Traefik instance
+# for HTTPS/routing, configured per-service from its dashboard, not from this
+# file. After deploying this stack, add Domains in Dokploy for:
+#   - service `web`,  container port 80   -> your main app domain, path /
+#   - service `api`,  container port 8080 -> same domain, path /api (or a
+#     dedicated api.* subdomain)
+#   - service `minio`, container port 9000 -> a dedicated subdomain (e.g.
+#     s3.yourdomain.com), so pre-signed URLs the API hands out resolve in the
+#     browser. Leave the MinIO console (port 9001) without a domain — it's
+#     not meant to be public; reach it via `docker exec`/an SSH tunnel.
+# (Exact steps depend on your Dokploy version's UI — check its current docs.)
+#
+# All variables below are set via Dokploy's per-project Environment tab, not
+# a committed .env file. See .env.example for the full list and what each
+# one means.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-recordingapp}
+      POSTGRES_USER: ${POSTGRES_USER:-recordingapp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy's Environment tab}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in Dokploy's Environment tab}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in Dokploy's Environment tab}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?}
+      S3_PHOTOS_BUCKET: ${S3_PHOTOS_BUCKET:?}
+      S3_AUDIO_BUCKET: ${S3_AUDIO_BUCKET:?}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\" &&
+      mc mb -p \"local/$$S3_PHOTOS_BUCKET\" \"local/$$S3_AUDIO_BUCKET\"
+      "
+    restart: on-failure
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/src/RecordingApp.Api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Postgres: Host=postgres;Port=5432;Database=${POSTGRES_DB:-recordingapp};Username=${POSTGRES_USER:-recordingapp};Password=${POSTGRES_PASSWORD:?}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY in Dokploy's Environment tab}
+      Jwt__Issuer: ${JWT_ISSUER:-RecordingApp}
+      Jwt__Audience: ${JWT_AUDIENCE:-RecordingApp}
+      S3__Region: ${S3_REGION:-us-east-1}
+      S3__ServiceUrl: ${S3_SERVICE_URL:?set S3_SERVICE_URL to the MinIO domain you configure in Dokploy, e.g. https://s3.yourdomain.com}
+      S3__ForcePathStyle: ${S3_FORCE_PATH_STYLE:-true}
+      S3__AccessKey: ${S3_ACCESS_KEY:?}
+      S3__SecretKey: ${S3_SECRET_KEY:?}
+      S3__PhotosBucket: ${S3_PHOTOS_BUCKET:?}
+      S3__AudioBucket: ${S3_AUDIO_BUCKET:?}
+      S3__PhotosPrefix: ${S3_PHOTOS_PREFIX:-}
+      S3__AudioPrefix: ${S3_AUDIO_PREFIX:-}
+      Smtp__Username: ${GMAIL_ADDRESS:?}
+      Smtp__AppPassword: ${GMAIL_APP_PASSWORD:?}
+      Smtp__FromAddress: ${GMAIL_ADDRESS:?}
+      App__WebBaseUrl: https://${DOMAIN:?set DOMAIN to the app's public domain configured in Dokploy}
+      Cors__AllowedOrigins__0: https://${DOMAIN:?}
+      Bootstrap__AdminEmail: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      Bootstrap__AdminPhoneNumber: ${BOOTSTRAP_ADMIN_PHONE:-}
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:

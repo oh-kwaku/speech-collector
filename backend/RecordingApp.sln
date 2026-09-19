@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DCDC4C71-61D2-4C90-8C12-5B2487038AA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecordingApp.Api", "src\RecordingApp.Api\RecordingApp.Api.csproj", "{60EE8FDA-F47B-4D3A-81B2-276713A8C0F9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecordingApp.Domain", "src\RecordingApp.Domain\RecordingApp.Domain.csproj", "{A9885841-C3C7-4B4C-920F-06AD7A685F03}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecordingApp.Infrastructure", "src\RecordingApp.Infrastructure\RecordingApp.Infrastructure.csproj", "{344F4F87-3D2C-4991-85CD-A820B56A492D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{30410EBF-5D8A-4D93-9E94-64EB575EF33A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RecordingApp.Tests", "tests\RecordingApp.Tests\RecordingApp.Tests.csproj", "{2C8989F6-140A-427D-99F0-D9FBEC39B8A8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{60EE8FDA-F47B-4D3A-81B2-276713A8C0F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{60EE8FDA-F47B-4D3A-81B2-276713A8C0F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{60EE8FDA-F47B-4D3A-81B2-276713A8C0F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{60EE8FDA-F47B-4D3A-81B2-276713A8C0F9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9885841-C3C7-4B4C-920F-06AD7A685F03}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9885841-C3C7-4B4C-920F-06AD7A685F03}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9885841-C3C7-4B4C-920F-06AD7A685F03}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9885841-C3C7-4B4C-920F-06AD7A685F03}.Release|Any CPU.Build.0 = Release|Any CPU
+		{344F4F87-3D2C-4991-85CD-A820B56A492D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{344F4F87-3D2C-4991-85CD-A820B56A492D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{344F4F87-3D2C-4991-85CD-A820B56A492D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{344F4F87-3D2C-4991-85CD-A820B56A492D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2C8989F6-140A-427D-99F0-D9FBEC39B8A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2C8989F6-140A-427D-99F0-D9FBEC39B8A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2C8989F6-140A-427D-99F0-D9FBEC39B8A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2C8989F6-140A-427D-99F0-D9FBEC39B8A8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{60EE8FDA-F47B-4D3A-81B2-276713A8C0F9} = {DCDC4C71-61D2-4C90-8C12-5B2487038AA1}
+		{A9885841-C3C7-4B4C-920F-06AD7A685F03} = {DCDC4C71-61D2-4C90-8C12-5B2487038AA1}
+		{344F4F87-3D2C-4991-85CD-A820B56A492D} = {DCDC4C71-61D2-4C90-8C12-5B2487038AA1}
+		{2C8989F6-140A-427D-99F0-D9FBEC39B8A8} = {30410EBF-5D8A-4D93-9E94-64EB575EF33A}
+	EndGlobalSection
+EndGlobal
