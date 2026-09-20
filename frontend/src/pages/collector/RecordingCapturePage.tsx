@@ -112,6 +112,16 @@ export default function RecordingCapturePage() {
             <img src={photo.url} alt="Describe what you see" className="aspect-square w-full object-contain" />
           </div>
 
+          {phase !== 'saved' && (
+            <button
+              onClick={loadNextPhoto}
+              disabled={recorder.status !== 'idle'}
+              className="mb-4 w-full rounded-lg border border-slate-300 py-3 font-medium text-slate-700 disabled:opacity-50"
+            >
+              🔀 Get another photo
+            </button>
+          )}
+
           {errorMessage && <p className="mb-3 text-sm text-red-600">{errorMessage}</p>}
           {recorder.error && <p className="mb-3 text-sm text-red-600">{recorder.error}</p>}
 

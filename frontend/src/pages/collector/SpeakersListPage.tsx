@@ -8,7 +8,7 @@ export default function SpeakersListPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [gender, setGender] = useState('Female')
-  const [ageYears, setAgeYears] = useState(6)
+  const [ageYears, setAgeYears] = useState(3)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -68,20 +68,21 @@ export default function SpeakersListPage() {
             >
               <option value="Female">Female</option>
               <option value="Male">Male</option>
-              <option value="Other">Other</option>
             </select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Age</label>
-            <input
-              type="number"
-              min={5}
-              max={10}
-              required
+            <select
               value={ageYears}
               onChange={(e) => setAgeYears(Number(e.target.value))}
               className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base"
-            />
+            >
+              {Array.from({ length: 10 }, (_, i) => i + 3).map((age) => (
+                <option key={age} value={age}>
+                  {age}
+                </option>
+              ))}
+            </select>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">

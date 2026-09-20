@@ -44,7 +44,9 @@ exported as training data.
   (`BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PHONE` in `.env`). See README "First
   login" section.
 - **Speaker capture flow** (Collector):
-  1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel.
+  1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel. Gender is a
+     dropdown restricted to Male/Female. Age is a dropdown of whole years 3–12
+     (not free-entry). (2026-09-20)
   2. On Save: a speaker ID is generated server-side and saved with the form data.
   3. Navigates to a "Speaker {id}" page where recording sessions begin.
 - **Recording flow** (Collector, on the Speaker's session page):
@@ -54,6 +56,12 @@ exported as training data.
      - Cancel exits back to the list of recordings for that speaker session.
      - After Save, a **Next** button appears that loads a new photo to start
        another recording.
+     - Before recording starts, a **"Get another photo"** button lets the
+       Collector randomly swap the current photo for a different one (reuses
+       the same random-unused-photo selection as "Next photo") without
+       affecting the recordings counter. It's disabled once recording has
+       started (covers recording/recorded, i.e. anything past idle), since
+       retake reuses the same photo rather than picking a new one. (2026-09-20)
   3. A counter showing the number of recordings for that speaker session is shown
      at the top of the recording page.
 - **Annotator UI**: a page/queue to annotate recordings, plus a view of all
