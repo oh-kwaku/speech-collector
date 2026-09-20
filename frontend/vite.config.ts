@@ -15,6 +15,7 @@ const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
 
 // https://vite.dev/config/
 export default defineConfig({
+   base: '/speech-collector/',
   plugins: [react(), tailwindcss()],
   server: {
     host: true,
