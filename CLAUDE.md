@@ -176,14 +176,25 @@ exported as training data.
   `dist/` to a `gh-pages` branch) — independent of the Dokploy deployment
   above, for a demo/staging frontend against a backend deployed elsewhere.
   Since there's no container at all here, `VITE_API_BASE_URL` must be passed
-  at build time (`VITE_API_BASE_URL=https://... npm run deploy`); the target
-  API's CORS config (`Cors:AllowedOrigins`) must allow the
-  `https://<owner>.github.io` origin. `vite.config.ts`'s `base:
+  at build time (`VITE_API_BASE_URL=https://... npm run deploy`, run
+  locally); the target API's CORS config (`Cors:AllowedOrigins`) must allow
+  the `https://<owner>.github.io` origin. `vite.config.ts`'s `base:
   '/speech-collector/'` must match the repo name (GitHub Pages project sites
   are served from `/<repo>/`). Client-side routes survive refresh/deep-link
   despite GitHub Pages having no rewrite rules, via a redirect trick in
   `frontend/public/404.html` + `frontend/index.html`. See README for full
   steps. (2026-09-20)
+  - `.github/workflows/deploy-gh-pages.yml` automates the above: runs on
+    push to `main` touching `frontend/**` or via manual `workflow_dispatch`,
+    builds with `VITE_API_BASE_URL` sourced from a GitHub Actions
+    **repository variable** (`vars.VITE_API_BASE_URL`, Settings → Secrets
+    and variables → Actions → Variables tab) — not a secret, since it ends
+    up in public client-side JS regardless — and pushes `frontend/dist` to
+    `gh-pages` via `peaceiris/actions-gh-pages` using the built-in
+    `GITHUB_TOKEN` (`permissions: contents: write`, no extra secrets to
+    configure). The manual `npm run deploy` path still works as a fallback
+    but pushes to the same branch, so don't run both for one release.
+    (2026-09-20)
 
 ## Where things live
 
