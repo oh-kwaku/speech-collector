@@ -131,6 +131,7 @@ exported as training data.
 - **Invite/OTP delivery**: email via Gmail SMTP; SMS behind an `ISmsSender`
   interface with a `ConsoleSmsSender` stub (logs codes to the console) — swap in a
   real provider (Twilio/SNS/etc.) later without touching callers.
+<<<<<<< HEAD
 - **Frontend `VITE_API_BASE_URL` is read at container startup, not baked in
   at build time**: a `docker-entrypoint.d/env-config.sh` script in the nginx
   image regenerates `env-config.js` (loaded by `index.html` before the app
@@ -167,6 +168,46 @@ exported as training data.
   usable, and uses host networking on the `api` service (Linux-only) since
   the app's S3 pre-signed URLs need the same hostname to resolve for both
   the container and the browser. (2026-09-19)
+=======
+- **Deployment**: production runs on a VPS via **Dokploy**. `web` and `api`
+  are each deployed as their own Dokploy "Application" (Dockerfile)
+  service — `web` from `frontend/Dockerfile`, `api` from `backend/Dockerfile`
+  — rather than as one Docker Compose stack. Postgres runs on Dokploy's
+  built-in Database feature; MinIO (the default S3-compatible object store)
+  is its own standalone Dokploy app. No Caddy: Dokploy's own Traefik handles
+  HTTPS/domain routing per service via its dashboard. (2026-09-20)
+  - **Frontend build args vs. env vars**: Vite env vars (`VITE_API_BASE_URL`
+    etc.) are baked into the static bundle at `npm run build` time inside
+    `frontend/Dockerfile`'s build stage (`ARG VITE_API_BASE_URL=/api`) — the
+    final image is plain nginx serving static files, which never reads env
+    vars at runtime. In Dokploy's per-app settings this value must go under
+    **Build Args**, not Environment Variables — Environment Variables are
+    only passed to the running container and are silently ignored for this
+    var. Changing it always requires a rebuild, not just a restart.
+    (2026-09-20)
+  - `docker-compose.dokploy.yml` bundles the whole stack (Postgres, MinIO +
+    `minio-init`, API, web) as a single Dokploy "Docker Compose" application
+    instead — kept as an alternative/reference deployment path, not the one
+    currently in use. Same build-arg caveat applies there:
+    `web.build.args.VITE_API_BASE_URL` must reference
+    `${VITE_API_BASE_URL:-/api}` (not a hardcoded value) so the Dokploy
+    Environment tab value reaches the build. Its bundled MinIO needs its own
+    Dokploy-configured subdomain (routed to container port 9000) since the
+    API hands out pre-signed URLs the browser must resolve directly; the
+    MinIO admin console is intentionally not exposed via a domain (reach it
+    via SSH port forwarding). (2026-09-16, revised 2026-09-20)
+  - `docker-compose.yml` (plain, no Dokploy) is separate and only for local
+    dev. Default (`docker compose up -d`, no `.env` needed) starts just
+    Postgres + MinIO backing services; the API/frontend run natively against
+    it, per the README. (2026-09-17) A `full` profile (`docker compose
+    --profile full up -d --build`) additionally containerizes the API/web
+    themselves (via the same Dockerfiles used for production) for a
+    one-command local deployment when you just want the app running rather
+    than to edit it — seeds a dev-only phone-OTP Admin so it's immediately
+    usable, and uses host networking on the `api` service (Linux-only) since
+    the app's S3 pre-signed URLs need the same hostname to resolve for both
+    the container and the browser. (2026-09-19)
+>>>>>>> refs/remotes/Speech-collector/frontend
 
 ## Where things live
 

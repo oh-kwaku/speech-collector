@@ -68,7 +68,7 @@ services:
   api:
     build:
       context: ./backend
-      dockerfile: src/RecordingApp.Api/Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -103,7 +103,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: /api
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     restart: unless-stopped
     environment:
       # Read at container startup (see frontend/docker-entrypoint.d/env-config.sh),
