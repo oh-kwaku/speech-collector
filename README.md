@@ -100,15 +100,16 @@ Docker Compose stack:
 No Caddy anywhere: Dokploy runs its own Traefik instance and handles
 HTTPS/domain routing per app from its dashboard.
 
-**⚠️ `VITE_API_BASE_URL` (and any other `VITE_*` var) must be set as a
-Dokploy Build Arg, not an Environment Variable, on the `web` app.** Vite
-bakes these into the static JS bundle at `npm run build` time
-(`frontend/Dockerfile`'s `ARG VITE_API_BASE_URL=/api`); the final image is
-plain nginx serving that pre-built bundle and never reads environment
-variables at runtime. Setting it under Environment Variables gets silently
-ignored — Dokploy only passes that section to the running container, not to
-`docker build`. After setting/changing it, trigger a rebuild (not just a
-restart) for it to take effect.
+`VITE_API_BASE_URL` (the frontend's API URL) is read by the `web` container
+at **startup**, not baked into the JS bundle at build time: its nginx image
+regenerates a small `env-config.js` from the container's real environment
+before nginx starts (see `frontend/docker-entrypoint.d/env-config.sh`), and
+`frontend/src/api/client.ts` reads that at runtime in preference to the
+build-time value. So changing it in Dokploy's Environment tab just needs a
+restart of `web`, not a rebuild. The `ARG VITE_API_BASE_URL=/api` in
+`frontend/Dockerfile` only sets the fallback default baked in for
+`vite build`/`vite preview` without Docker (and for the GitHub Pages build
+below, which has no running container at all).
 
 Steps, per app:
 
@@ -116,9 +117,9 @@ Steps, per app:
    (Dockerfile path `frontend/Dockerfile`, build context `frontend/`) and
    another for `api` (Dockerfile path `backend/Dockerfile`, build context
    `backend/`).
-2. On `web`, set `VITE_API_BASE_URL` under **Build Args** (see warning
-   above) — e.g. `/api` if `api` is routed under the same domain at path
-   `/api`, or `https://api.yourdomain.com` if it's on its own subdomain.
+2. On `web`, set `VITE_API_BASE_URL` under **Environment Variables** — e.g.
+   `/api` if `api` is routed under the same domain at path `/api`, or
+   `https://api.yourdomain.com` if it's on its own subdomain.
 3. On `api`, fill in its runtime config (connection strings, JWT signing
    key, S3 credentials, SMTP, bootstrap admin, etc. — see `.env.example` for
    the full list of values needed) under Environment Variables.
@@ -142,16 +143,45 @@ Steps, per app:
 `docker-compose.dokploy.yml` still exists as an alternative single-stack
 Compose deployment (Postgres, MinIO, API, web all in one Dokploy "Docker
 Compose" application) if you'd rather not manage separate apps — see the
-comments at the top of that file. The same Build Args caveat applies there
-too: its `web.build.args.VITE_API_BASE_URL` reads from the Dokploy
-Environment tab (`${VITE_API_BASE_URL:-/api}`), and changing it still
-requires a rebuild of the `web` service, not just a restart.
+comments at the top of that file. The same runtime `env-config.js` behavior
+applies there: `VITE_API_BASE_URL` set on the compose service's environment
+takes effect on restart, no rebuild needed.
 
-`VITE_API_BASE_URL` (the frontend's API URL) is read by the `web` container
-at **startup**, not baked into the JS bundle at build time — its nginx image
-regenerates a small `env-config.js` from the container's real environment
-before nginx starts. So changing it in Dokploy's Environment tab just needs
-a restart of `web`, not a rebuild.
+## Deploying the frontend to GitHub Pages
+
+The frontend can also be published as a static site on GitHub Pages,
+independent of the Dokploy deployment above — useful for a demo/staging
+frontend against a backend API that's already deployed elsewhere. GitHub
+Pages only serves static files: there's no server to run the runtime
+`env-config.js` trick the Docker image uses, and no `/api` reverse proxy, so
+the API's full URL has to be baked into the build instead.
+
+1. One-time GitHub setup: in the repo's Settings → Pages, set **Source** to
+   "Deploy from a branch", branch `gh-pages`, folder `/(root)`. (The first
+   `npm run deploy` below creates that branch — you can only select it here
+   afterwards.)
+2. Make sure a real backend API is already deployed and reachable over HTTPS
+   from the browser (e.g. via Dokploy, above), and that it allows the GitHub
+   Pages origin in CORS: set `Cors__AllowedOrigins__0=https://<owner>.github.io`
+   in the API's environment (add `Cors__AllowedOrigins__1`, etc. for
+   additional origins).
+3. From `frontend/`, build and publish with that API URL baked in:
+
+   ```bash
+   cd frontend
+   VITE_API_BASE_URL=https://api.yourdomain.com npm run deploy
+   ```
+
+   `npm run deploy` (the `gh-pages` package) runs `npm run build`
+   (`predeploy`) and pushes the resulting `dist/` to the `gh-pages` branch.
+4. The site is served at `https://<owner>.github.io/speech-collector/` —
+   `vite.config.ts`'s `base: '/speech-collector/'` must match the repo name,
+   since GitHub Pages project sites are served from that subpath. Update it
+   if the repo is ever renamed.
+
+Client-side routes (e.g. `/dashboard`) still work on refresh/direct link even
+though GitHub Pages has no server-side rewrite rules, via a small redirect
+trick in `public/404.html` + `index.html` (see the comments there).
 
 ## First login (no default admin)
 
