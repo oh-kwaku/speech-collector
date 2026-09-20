@@ -166,15 +166,22 @@ the API's full URL has to be baked into the build instead.
    in the API's environment (add `Cors__AllowedOrigins__1`, etc. for
    additional origins).
 3. **Automated (recommended)**: `.github/workflows/deploy-gh-pages.yml`
-   builds and publishes `frontend/` on every push to `main` that touches
-   `frontend/**` (or manually via the Actions tab → "Deploy frontend to
-   GitHub Pages" → Run workflow). It reads `VITE_API_BASE_URL` from a
-   **repository variable**, not a secret, since it's just a URL baked into
-   public client-side JS anyway: Settings → Secrets and variables → Actions
-   → **Variables** tab → New repository variable → name
-   `VITE_API_BASE_URL`, value `https://api.yourdomain.com`. The workflow
-   uses the built-in `GITHUB_TOKEN` to push `dist/` to `gh-pages`, so no
-   extra secrets are needed.
+   builds and publishes `frontend/` on every push to `frontend`/`master`
+   that touches `frontend/**` (or manually via the Actions tab → "Deploy
+   frontend to GitHub Pages" → Run workflow). It reads `VITE_API_BASE_URL`
+   from the `github-pages` **Environment** (Settings → Environments →
+   `github-pages` → add an **Environment variable** named
+   `VITE_API_BASE_URL`, value `https://api.yourdomain.com`) — it doesn't
+   need to be a secret, since it's just a URL baked into public client-side
+   JS anyway. The workflow's job declares `environment: github-pages` so it
+   can see that scope; if you'd rather use a plain **repository** variable
+   instead (Settings → Secrets and variables → Actions → Variables tab),
+   that works too without needing the `environment:` key at all, but don't
+   set the same name in both places — the Environment one only applies if
+   the job opts into that environment, and a variable set in the wrong
+   scope for how the workflow is written silently reads as unset (falls
+   back to `/api`). The workflow uses the built-in `GITHUB_TOKEN` to push
+   `dist/` to `gh-pages`, so no extra secrets are needed.
 4. **Manual (alternative)**: build and publish from your own machine with
    that API URL baked in:
 

@@ -17,6 +17,13 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Needed so the job can read variables/secrets scoped to the
+    # "github-pages" Environment (Settings -> Environments -> github-pages),
+    # as opposed to repository-level ones (Settings -> Secrets and
+    # variables -> Actions). A job with no `environment:` key only sees the
+    # repo-level scope, which is why vars.VITE_API_BASE_URL was empty
+    # despite being set under Environments.
+    environment: github-pages
     steps:
       - uses: actions/checkout@v4
 

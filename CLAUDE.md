@@ -185,16 +185,29 @@ exported as training data.
   `frontend/public/404.html` + `frontend/index.html`. See README for full
   steps. (2026-09-20)
   - `.github/workflows/deploy-gh-pages.yml` automates the above: runs on
-    push to `main` touching `frontend/**` or via manual `workflow_dispatch`,
-    builds with `VITE_API_BASE_URL` sourced from a GitHub Actions
-    **repository variable** (`vars.VITE_API_BASE_URL`, Settings → Secrets
-    and variables → Actions → Variables tab) — not a secret, since it ends
-    up in public client-side JS regardless — and pushes `frontend/dist` to
-    `gh-pages` via `peaceiris/actions-gh-pages` using the built-in
-    `GITHUB_TOKEN` (`permissions: contents: write`, no extra secrets to
-    configure). The manual `npm run deploy` path still works as a fallback
-    but pushes to the same branch, so don't run both for one release.
-    (2026-09-20)
+    push to the `frontend`/`master` branches touching `frontend/**` or via
+    manual `workflow_dispatch`, builds with `VITE_API_BASE_URL` sourced from
+    a GitHub Actions variable — not a secret, since it ends up in public
+    client-side JS regardless — and pushes `frontend/dist` to `gh-pages` via
+    `peaceiris/actions-gh-pages` using the built-in `GITHUB_TOKEN`
+    (`permissions: contents: write`, no extra secrets to configure). The
+    manual `npm run deploy` path still works as a fallback but pushes to the
+    same branch, so don't run both for one release. The job declares
+    `environment: github-pages` so it can read `vars.VITE_API_BASE_URL` set
+    under Settings → Environments → `github-pages` → Environment variables
+    — a *repository*-level variable (Settings → Secrets and variables →
+    Actions → Variables tab) needs no `environment:` key instead; a job
+    without a matching `environment:` key silently sees neither the
+    Environment's variables nor its secrets. (2026-09-20)
+  - GitHub Pages serves the app at `/speech-collector/`, so
+    `BrowserRouter` in `frontend/src/main.tsx` needs
+    `basename={import.meta.env.BASE_URL}` — without it, React Router
+    resolves every `<Navigate>`/redirect against the domain root (e.g.
+    `/login` instead of `/speech-collector/login`), 404ing after auth
+    redirects. The one raw `window.location.assign(...)` outside router
+    context (401 handler in `frontend/src/api/client.ts`) needs the same
+    `import.meta.env.BASE_URL` prefix manually, since `basename` doesn't
+    apply to it. (2026-09-20)
 
 ## Where things live
 
