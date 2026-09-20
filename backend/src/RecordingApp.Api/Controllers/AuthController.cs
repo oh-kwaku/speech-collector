@@ -107,7 +107,6 @@ public class AuthController(
 
     private async Task SendCodeAsync(User user, OtpChannel channel, string code, CancellationToken ct)
     {
-        return;
         if (channel == OtpChannel.Email && user.Email != null)
         {
             await emailSender.SendAsync(user.Email, "Your sign-in code",
