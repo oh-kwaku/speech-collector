@@ -131,6 +131,18 @@ exported as training data.
 - **Invite/OTP delivery**: email via Gmail SMTP; SMS behind an `ISmsSender`
   interface with a `ConsoleSmsSender` stub (logs codes to the console) — swap in a
   real provider (Twilio/SNS/etc.) later without touching callers.
+- **Frontend `VITE_API_BASE_URL` is read at container startup, not baked in
+  at build time**: a `docker-entrypoint.d/env-config.sh` script in the nginx
+  image regenerates `env-config.js` (loaded by `index.html` before the app
+  bundle, read in `frontend/src/api/client.ts` via `window.__RUNTIME_CONFIG__`)
+  from the container's actual env every time it starts. This was originally
+  a Vite build-time-only `ARG`/`ENV` in `frontend/Dockerfile`, which meant an
+  env var set in Dokploy's Environment tab was silently ignored (nginx never
+  reads env vars, and the value was already permanently baked into the JS
+  bundle at `npm run build`) — changing it needed a Dokploy *Build Arg* and a
+  full rebuild. Now a plain Environment Variable + restart is enough; the
+  build-time `ARG` still sets the fallback default (`/api`) used by
+  `vite build`/`vite preview` without Docker. (2026-09-20)
 - **Deployment**: production runs on a VPS via **Dokploy** (`docker-compose.dokploy.yml`),
   deployed directly from this GitHub repo — Dokploy builds from the `build:`
   sections itself, no image registry involved. No Caddy: Dokploy's own

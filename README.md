@@ -117,6 +117,12 @@ To use real AWS S3 or another external provider instead of the bundled
 MinIO, repoint the `S3_*` variables and remove the `minio`/`minio-init`
 services from `docker-compose.dokploy.yml`.
 
+`VITE_API_BASE_URL` (the frontend's API URL) is read by the `web` container
+at **startup**, not baked into the JS bundle at build time — its nginx image
+regenerates a small `env-config.js` from the container's real environment
+before nginx starts. So changing it in Dokploy's Environment tab just needs
+a restart of `web`, not a rebuild.
+
 ## First login (no default admin)
 
 There is no password login and no seeded default admin — auth is OTP-only
