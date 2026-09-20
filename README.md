@@ -85,27 +85,53 @@ dotnet test
 
 ## Deploying to production (Dokploy)
 
-`docker-compose.dokploy.yml` is the full app stack (Postgres, MinIO, API,
-web) meant to be deployed as a Dokploy "Docker Compose" application, built
-directly from this GitHub repo — Dokploy runs `docker compose build` against
-the `build:` sections in that file itself, so no image registry is involved.
+Production is deployed as **separate Dokploy applications**, not as one
+Docker Compose stack:
 
-It intentionally has no Caddy service and publishes no host ports: Dokploy
-runs its own Traefik instance and handles HTTPS/domain routing per service
-from its dashboard, not from the compose file. Steps:
+- `web` — a Dokploy "Application" (Dockerfile) service built from
+  `frontend/Dockerfile`.
+- `api` — a Dokploy "Application" (Dockerfile) service built from
+  `backend/Dockerfile`.
+- Postgres — provisioned via Dokploy's built-in Database feature (not this
+  repo's `docker-compose.yml` Postgres).
+- MinIO (the default S3-compatible object store) — its own standalone
+  Dokploy app.
 
-1. In Dokploy, create a Compose application pointed at this repo, with
-   Compose Path set to `docker-compose.dokploy.yml`.
-2. Fill in the variables from `.env.example` under the app's Environment tab
-   (not a committed `.env` file).
-3. Enable auto-deploy on push if wanted; a push rebuilds the whole stack
-   (every service with a `build:`), not just whichever of frontend/backend
-   changed.
-4. After the first deploy, add Domains in Dokploy for:
-   - service `web`, container port 80 → your main app domain, path `/`
-   - service `api`, container port 8080 → same domain, path `/api` (or a
-     dedicated `api.*` subdomain)
-   - service `minio`, container port 9000 → a dedicated subdomain (e.g.
+No Caddy anywhere: Dokploy runs its own Traefik instance and handles
+HTTPS/domain routing per app from its dashboard.
+
+**⚠️ `VITE_API_BASE_URL` (and any other `VITE_*` var) must be set as a
+Dokploy Build Arg, not an Environment Variable, on the `web` app.** Vite
+bakes these into the static JS bundle at `npm run build` time
+(`frontend/Dockerfile`'s `ARG VITE_API_BASE_URL=/api`); the final image is
+plain nginx serving that pre-built bundle and never reads environment
+variables at runtime. Setting it under Environment Variables gets silently
+ignored — Dokploy only passes that section to the running container, not to
+`docker build`. After setting/changing it, trigger a rebuild (not just a
+restart) for it to take effect.
+
+Steps, per app:
+
+1. In Dokploy, create an Application pointed at this repo for `web`
+   (Dockerfile path `frontend/Dockerfile`, build context `frontend/`) and
+   another for `api` (Dockerfile path `backend/Dockerfile`, build context
+   `backend/`).
+2. On `web`, set `VITE_API_BASE_URL` under **Build Args** (see warning
+   above) — e.g. `/api` if `api` is routed under the same domain at path
+   `/api`, or `https://api.yourdomain.com` if it's on its own subdomain.
+3. On `api`, fill in its runtime config (connection strings, JWT signing
+   key, S3 credentials, SMTP, bootstrap admin, etc. — see `.env.example` for
+   the full list of values needed) under Environment Variables.
+4. Provision Postgres via Dokploy's Database feature and point `api`'s
+   `ConnectionStrings__Postgres` at it.
+5. Deploy MinIO as its own Dokploy app (or point at real AWS S3/another
+   provider instead by setting the `S3_*` vars on `api` and skipping MinIO
+   entirely).
+6. Add Domains in Dokploy for:
+   - `web`, container port 80 → your main app domain, path `/`
+   - `api`, container port 8080 → same domain, path `/api` (or a dedicated
+     `api.*` subdomain)
+   - `minio`, container port 9000 → a dedicated subdomain (e.g.
      `s3.yourdomain.com`) — this must be reachable by the *browser*, since
      the API hands out pre-signed URLs against `S3_SERVICE_URL` directly to
      it. Leave the MinIO console (port 9001) without a domain; it's not
@@ -113,9 +139,13 @@ from its dashboard, not from the compose file. Steps:
    (Exact steps depend on your Dokploy version's UI — check its current
    docs.)
 
-To use real AWS S3 or another external provider instead of the bundled
-MinIO, repoint the `S3_*` variables and remove the `minio`/`minio-init`
-services from `docker-compose.dokploy.yml`.
+`docker-compose.dokploy.yml` still exists as an alternative single-stack
+Compose deployment (Postgres, MinIO, API, web all in one Dokploy "Docker
+Compose" application) if you'd rather not manage separate apps — see the
+comments at the top of that file. The same Build Args caveat applies there
+too: its `web.build.args.VITE_API_BASE_URL` reads from the Dokploy
+Environment tab (`${VITE_API_BASE_URL:-/api}`), and changing it still
+requires a rebuild of the `web` service, not just a restart.
 
 ## First login (no default admin)
 
