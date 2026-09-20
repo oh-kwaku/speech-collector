@@ -208,6 +208,18 @@ exported as training data.
     context (401 handler in `frontend/src/api/client.ts`) needs the same
     `import.meta.env.BASE_URL` prefix manually, since `basename` doesn't
     apply to it. (2026-09-20)
+  - `frontend/vite.config.ts`'s `base` must NOT be an unconditional
+    `/speech-collector/` — that also bakes the prefix into the **Docker**
+    build's `dist/index.html` asset paths, but `nginx.conf` there serves
+    from `/` and only maps `/assets/`, so every JS/CSS request 404s and
+    nginx's SPA fallback (`try_files $uri /index.html`) serves back
+    `index.html` in their place — a blank page, no console error beyond a
+    script-parse failure. Fixed by making `base` conditional:
+    `process.env.GH_PAGES === 'true' ? '/speech-collector/' : '/'`, with
+    `GH_PAGES=true` set only by `frontend/package.json`'s `predeploy`
+    script and by `deploy-gh-pages.yml`'s build step — the plain
+    `npm run build` used by `frontend/Dockerfile` leaves it unset, so
+    Docker/Dokploy builds still get `base: '/'`. (2026-09-20)
 
 ## Where things live
 
