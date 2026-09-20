@@ -131,6 +131,20 @@ exported as training data.
 - **Invite/OTP delivery**: email via Gmail SMTP; SMS behind an `ISmsSender`
   interface with a `ConsoleSmsSender` stub (logs codes to the console) — swap in a
   real provider (Twilio/SNS/etc.) later without touching callers.
+- **Frontend `VITE_API_BASE_URL` is read at container startup, not baked in
+  at build time**: a `docker-entrypoint.d/env-config.sh` script in the nginx
+  image regenerates `env-config.js` (loaded by `index.html` before the app
+  bundle, read in `frontend/src/api/client.ts` via `window.__RUNTIME_CONFIG__`)
+  from the container's actual env every time it starts. This was originally
+  a Vite build-time-only `ARG`/`ENV` in `frontend/Dockerfile`, which meant an
+  env var set in Dokploy's Environment tab was silently ignored (nginx never
+  reads env vars, and the value was already permanently baked into the JS
+  bundle at `npm run build`) — changing it needed a Dokploy *Build Arg* and a
+  full rebuild. Now a plain Environment Variable + restart is enough on
+  either Dokploy topology below; the build-time `ARG` still sets the
+  fallback default (`/api`) used by `vite build`/`vite preview` without
+  Docker, and by the GitHub Pages build below, which has no running
+  container to read env vars from at all. (2026-09-20)
 - **Deployment**: production runs on a VPS via **Dokploy**. `web` and `api`
   are each deployed as their own Dokploy "Application" (Dockerfile)
   service — `web` from `frontend/Dockerfile`, `api` from `backend/Dockerfile`
@@ -138,26 +152,14 @@ exported as training data.
   built-in Database feature; MinIO (the default S3-compatible object store)
   is its own standalone Dokploy app. No Caddy: Dokploy's own Traefik handles
   HTTPS/domain routing per service via its dashboard. (2026-09-20)
-  - **Frontend build args vs. env vars**: Vite env vars (`VITE_API_BASE_URL`
-    etc.) are baked into the static bundle at `npm run build` time inside
-    `frontend/Dockerfile`'s build stage (`ARG VITE_API_BASE_URL=/api`) — the
-    final image is plain nginx serving static files, which never reads env
-    vars at runtime. In Dokploy's per-app settings this value must go under
-    **Build Args**, not Environment Variables — Environment Variables are
-    only passed to the running container and are silently ignored for this
-    var. Changing it always requires a rebuild, not just a restart.
-    (2026-09-20)
   - `docker-compose.dokploy.yml` bundles the whole stack (Postgres, MinIO +
     `minio-init`, API, web) as a single Dokploy "Docker Compose" application
     instead — kept as an alternative/reference deployment path, not the one
-    currently in use. Same build-arg caveat applies there:
-    `web.build.args.VITE_API_BASE_URL` must reference
-    `${VITE_API_BASE_URL:-/api}` (not a hardcoded value) so the Dokploy
-    Environment tab value reaches the build. Its bundled MinIO needs its own
-    Dokploy-configured subdomain (routed to container port 9000) since the
-    API hands out pre-signed URLs the browser must resolve directly; the
-    MinIO admin console is intentionally not exposed via a domain (reach it
-    via SSH port forwarding). (2026-09-16, revised 2026-09-20)
+    currently in use. Its bundled MinIO needs its own Dokploy-configured
+    subdomain (routed to container port 9000) since the API hands out
+    pre-signed URLs the browser must resolve directly; the MinIO admin
+    console is intentionally not exposed via a domain (reach it via SSH port
+    forwarding). (2026-09-16, revised 2026-09-20)
   - `docker-compose.yml` (plain, no Dokploy) is separate and only for local
     dev. Default (`docker compose up -d`, no `.env` needed) starts just
     Postgres + MinIO backing services; the API/frontend run natively against
@@ -169,6 +171,19 @@ exported as training data.
     usable, and uses host networking on the `api` service (Linux-only) since
     the app's S3 pre-signed URLs need the same hostname to resolve for both
     the container and the browser. (2026-09-19)
+- **GitHub Pages**: the frontend alone can also be published as a static
+  site (`frontend/`'s `npm run deploy`, via the `gh-pages` package pushing
+  `dist/` to a `gh-pages` branch) — independent of the Dokploy deployment
+  above, for a demo/staging frontend against a backend deployed elsewhere.
+  Since there's no container at all here, `VITE_API_BASE_URL` must be passed
+  at build time (`VITE_API_BASE_URL=https://... npm run deploy`); the target
+  API's CORS config (`Cors:AllowedOrigins`) must allow the
+  `https://<owner>.github.io` origin. `vite.config.ts`'s `base:
+  '/speech-collector/'` must match the repo name (GitHub Pages project sites
+  are served from `/<repo>/`). Client-side routes survive refresh/deep-link
+  despite GitHub Pages having no rewrite rules, via a redirect trick in
+  `frontend/public/404.html` + `frontend/index.html`. See README for full
+  steps. (2026-09-20)
 
 ## Where things live
 
