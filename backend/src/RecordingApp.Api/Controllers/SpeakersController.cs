@@ -47,6 +47,30 @@ public class SpeakersController(RecordingAppDbContext db, ICurrentUser currentUs
         return Ok(SpeakerDto.From(speaker));
     }
 
+    [HttpGet("speakers/{speakerId}")]
+    public async Task<ActionResult<SpeakerDto>> Get(string speakerId, CancellationToken ct)
+    {
+        var speaker = await db.Speakers.FirstOrDefaultAsync(
+            s => s.Id == speakerId && s.CreatedByUserId == currentUser.Id, ct);
+        if (speaker is null) return NotFound();
+        return Ok(SpeakerDto.From(speaker));
+    }
+
+    [HttpPut("speakers/{speakerId}")]
+    public async Task<ActionResult<SpeakerDto>> Update(string speakerId, UpdateSpeakerDto dto, CancellationToken ct)
+    {
+        if (dto.AgeYears is < 3 or > 12) return BadRequest("Age must be between 3 and 12.");
+
+        var speaker = await db.Speakers.FirstOrDefaultAsync(
+            s => s.Id == speakerId && s.CreatedByUserId == currentUser.Id, ct);
+        if (speaker is null) return NotFound();
+
+        speaker.Gender = dto.Gender;
+        speaker.AgeYears = dto.AgeYears;
+        await db.SaveChangesAsync(ct);
+        return Ok(SpeakerDto.From(speaker));
+    }
+
     [HttpPost("speakers/{speakerId}/sessions/active")]
     public async Task<ActionResult<SessionDto>> GetOrCreateActiveSession(string speakerId, CancellationToken ct)
     {

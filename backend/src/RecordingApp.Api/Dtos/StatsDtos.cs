@@ -3,6 +3,7 @@ namespace RecordingApp.Api.Dtos;
 public record AdminStatsDto(
     int TotalRecordings,
     int TotalAnnotations,
+    long TotalAudioDurationSeconds,
     Dictionary<string, int> RecordingsByGender,
     Dictionary<string, int> RecordingsByAge);
 

@@ -149,6 +149,7 @@ public class AdminController(
 
         var totalRecordings = await confirmed.CountAsync(ct);
         var totalAnnotations = await db.Annotations.CountAsync(ct);
+        var totalDurationSeconds = await confirmed.SumAsync(r => (long)r.DurationSeconds, ct);
 
         var byGender = await confirmed
             .GroupBy(r => r.Session!.Speaker!.Gender)
@@ -163,6 +164,7 @@ public class AdminController(
         return Ok(new AdminStatsDto(
             totalRecordings,
             totalAnnotations,
+            totalDurationSeconds,
             byGender.ToDictionary(x => x.Key, x => x.Count),
             byAge.ToDictionary(x => x.Key, x => x.Count)));
     }

@@ -38,7 +38,7 @@ public class RecordingsController(
         if (pool.Count == 0) return NotFound("No photos are available. Ask an admin to sync the photo bucket.");
         var candidate = pool[Random.Shared.Next(pool.Count)];
 
-        return Ok(new PhotoDto(candidate.Id, storage.GetPhotoReadUrl(candidate.S3Key)));
+        return Ok(new PhotoDto(candidate.Id, storage.GetPhotoReadUrl(candidate.S3Key), Path.GetFileName(candidate.S3Key)));
     }
 
     [HttpGet("sessions/{sessionId:guid}/recordings")]
