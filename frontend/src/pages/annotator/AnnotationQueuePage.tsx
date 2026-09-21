@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { createAnnotation, listRecordings } from '../../api/annotations'
+import { createAnnotation, listAnnotationQueue } from '../../api/annotations'
 import AudioPlayer from '../../components/AudioPlayer'
-import type { Recording } from '../../types'
+import type { RecordingQueueEntry } from '../../types'
 
 export default function AnnotationQueuePage() {
-  const [recordings, setRecordings] = useState<Recording[]>([])
+  const [recordings, setRecordings] = useState<RecordingQueueEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -15,7 +15,10 @@ export default function AnnotationQueuePage() {
 
   function refresh() {
     setLoading(true)
-    listRecordings({ annotated: false })
+    // IRR: this only ever returns recordings the current user hasn't
+    // annotated yet, so their view of the count/target never leaks another
+    // annotator's text - they stay blind while writing their own.
+    listAnnotationQueue()
       .then((res) => setRecordings(res.data))
       .finally(() => setLoading(false))
   }
@@ -26,7 +29,7 @@ export default function AnnotationQueuePage() {
     setSavingId(recordingId)
     try {
       await createAnnotation(recordingId, text)
-      setRecordings((prev) => prev.filter((r) => r.id !== recordingId))
+      setRecordings((prev) => prev.filter((r) => r.recordingId !== recordingId))
     } finally {
       setSavingId(null)
     }
@@ -42,7 +45,7 @@ export default function AnnotationQueuePage() {
       ) : (
         <ul className="space-y-4">
           {recordings.map((r) => (
-            <li key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+            <li key={r.recordingId} className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-3 flex flex-col gap-3 sm:flex-row">
                 <img
                   src={r.photoUrl}
@@ -54,21 +57,27 @@ export default function AnnotationQueuePage() {
                   <p className="text-xs text-slate-400">
                     Speaker {r.speakerId} &middot; {new Date(r.createdAt).toLocaleString()}
                   </p>
+                  {r.annotationCount > 0 && (
+                    <p className="text-xs font-medium text-amber-600">
+                      {r.annotationCount} of {r.targetAnnotatorCount} annotators done &middot; your
+                      annotation will be independent (you won&apos;t see theirs)
+                    </p>
+                  )}
                 </div>
               </div>
               <textarea
-                value={drafts[r.id] ?? ''}
-                onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: e.target.value }))}
+                value={drafts[r.recordingId] ?? ''}
+                onChange={(e) => setDrafts((d) => ({ ...d, [r.recordingId]: e.target.value }))}
                 placeholder="Write what the child said…"
                 rows={3}
                 className="mb-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-base"
               />
               <button
-                onClick={() => handleSave(r.id)}
-                disabled={savingId === r.id || !(drafts[r.id] ?? '').trim()}
+                onClick={() => handleSave(r.recordingId)}
+                disabled={savingId === r.recordingId || !(drafts[r.recordingId] ?? '').trim()}
                 className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
               >
-                {savingId === r.id ? 'Saving…' : 'Save annotation'}
+                {savingId === r.recordingId ? 'Saving…' : 'Save annotation'}
               </button>
             </li>
           ))}

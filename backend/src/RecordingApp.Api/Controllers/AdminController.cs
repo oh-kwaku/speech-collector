@@ -213,4 +213,20 @@ public class AdminController(
         var csv = await export.ExportCsvAsync(ct);
         return File(csv, "text/csv", "recordings-export.csv");
     }
+
+    // IRR: separate export, one row per (recording, annotator) pair, for
+    // recordings that have 2+ annotations - i.e. only the ones usable for
+    // an agreement computation. Kept separate from /export so that export's
+    // documented one-row-per-recording schema doesn't change.
+    [HttpGet("export/irr")]
+    public async Task<IActionResult> ExportIrr([FromQuery] string format, CancellationToken ct)
+    {
+        if (format == "xlsx")
+        {
+            var bytes = await export.ExportIrrXlsxAsync(ct);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "irr-export.xlsx");
+        }
+        var csv = await export.ExportIrrCsvAsync(ct);
+        return File(csv, "text/csv", "irr-export.csv");
+    }
 }

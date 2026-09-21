@@ -13,6 +13,7 @@ import AllAnnotationsPage from './pages/annotator/AllAnnotationsPage'
 import UsersPage from './pages/admin/UsersPage'
 import RecordingsBrowserPage from './pages/admin/RecordingsBrowserPage'
 import ExportPage from './pages/admin/ExportPage'
+import IrrReportPage from './pages/admin/IrrReportPage'
 import DashboardPage from './pages/DashboardPage'
 
 function HomeRedirect() {
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="/admin/users" element={<UsersPage />} />
             <Route path="/admin/recordings" element={<RecordingsBrowserPage />} />
             <Route path="/admin/export" element={<ExportPage />} />
+            <Route path="/admin/irr" element={<IrrReportPage />} />
           </Route>
         </Route>
       </Route>

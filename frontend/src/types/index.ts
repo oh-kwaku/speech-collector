@@ -45,7 +45,10 @@ export interface Recording {
   durationSeconds: number
   createdByUserId: string
   createdAt: string
-  isAnnotated: boolean
+  // IRR: how many independent annotators have annotated this recording so
+  // far, out of how many it was sampled to need (usually 1).
+  annotationCount: number
+  requiredAnnotatorCount: number
 }
 
 export interface Annotation {
@@ -63,6 +66,41 @@ export interface Annotation {
   speakerId: string
   createdAt: string
   updatedAt: string
+  // IRR: whether this is the annotation used for the training-data export.
+  isCanonical: boolean
+}
+
+// IRR: a queue entry never carries annotation text (the recording may
+// already have one from another annotator) so the viewer stays blind to it.
+export interface RecordingQueueEntry {
+  recordingId: string
+  speakerId: string
+  photoUrl: string
+  audioUrl: string
+  createdAt: string
+  annotationCount: number
+  targetAnnotatorCount: number
+}
+
+export interface IrrAnnotationEntry {
+  annotationId: string
+  annotatorUserId: string
+  annotatorEmail: string | null
+  annotatorPhoneNumber: string | null
+  text: string
+  updatedAt: string
+  isCanonical: boolean
+}
+
+export interface IrrRecording {
+  recordingId: string
+  speakerId: string
+  photoUrl: string
+  audioUrl: string
+  annotations: IrrAnnotationEntry[]
+  // Average pairwise word-level similarity across all annotators (1 =
+  // identical, 0 = completely different). List is sorted by this ascending.
+  agreementScore: number
 }
 
 export interface AdminUser {
