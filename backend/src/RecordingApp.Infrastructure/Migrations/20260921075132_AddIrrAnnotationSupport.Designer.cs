@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RecordingApp.Infrastructure;
@@ -11,9 +12,11 @@ using RecordingApp.Infrastructure;
 namespace RecordingApp.Infrastructure.Migrations
 {
     [DbContext(typeof(RecordingAppDbContext))]
-    partial class RecordingAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260921075132_AddIrrAnnotationSupport")]
+    partial class AddIrrAnnotationSupport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

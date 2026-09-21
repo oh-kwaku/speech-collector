@@ -110,7 +110,25 @@ public class Recording
     public bool IsConfirmed { get; set; }
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
-    public Annotation? Annotation { get; set; }
+    // IRR: a recording can be independently annotated by several annotators
+    // (each annotator at most once - enforced by a unique (RecordingId,
+    // AnnotatorUserId) index), not just one. See AnnotationsController's
+    // queue/target-count logic for how many are collected per recording.
+    public List<Annotation> Annotations { get; set; } = [];
+
+    // How many independent annotators this recording needs before it's fully
+    // annotated. Decided once, at confirm time: normally 1, but a random
+    // sample (Irr:SampleRatePercent) is raised to Irr:TargetAnnotatorsPerRecording
+    // so only a configurable fraction of recordings pay the double-annotation
+    // cost, rather than every recording being annotated twice.
+    public int RequiredAnnotatorCount { get; set; } = 1;
+
+    // Which of this recording's (possibly several) independent Annotations is
+    // used for the training-data export. Defaults to the first one submitted;
+    // an Admin can repoint it after reviewing rater disagreement in the IRR
+    // report (see AnnotationsController.SetCanonical).
+    public Guid? CanonicalAnnotationId { get; set; }
+    public Annotation? CanonicalAnnotation { get; set; }
 }
 
 public class Annotation

@@ -79,6 +79,40 @@ exported as training data.
     modal (shared `PhotoModal` component; all annotations, collector session
     view, collector history) — so a user can always see what the child was
     describing without leaving the page. (2026-09-16)
+  - **Inter-rater reliability (IRR)**: a Recording can carry multiple
+    independent Annotations (one per annotator), not just one — a
+    `Recording` → `Annotation` is one-to-many, with a unique
+    `(RecordingId, AnnotatorUserId)` DB constraint so the same annotator
+    can't annotate the same recording twice. Decision: only a **random
+    sample** of recordings are double/triple-annotated, not every recording
+    — at confirm time, `Irr:SampleRatePercent` (config, default 20%) of
+    recordings get `Recording.RequiredAnnotatorCount` set to
+    `Irr:TargetAnnotatorsPerRecording` (config, default 2) instead of the
+    normal 1, so only that fraction pays the double-annotation cost. The
+    annotation queue (`GET /api/annotations/queue`) only ever shows a
+    recording to an annotator who hasn't annotated it yet, and never exposes
+    any existing annotation's text, so annotators stay blind to each other's
+    answers while the target is being filled; a recording drops out of every
+    queue once `RequiredAnnotatorCount` is reached. Only the annotation's own
+    author (or an Admin) may edit its text afterward, to preserve
+    independence between raters.
+    Admins get a dedicated `/admin/irr` report showing, for every recording
+    with 2+ annotations, each annotator's text side by side plus a
+    **word-level similarity score** (0–1, edit-distance based — see
+    `RecordingApp.Infrastructure.Irr.TextSimilarity`), sorted lowest-agreement
+    first so recordings most needing a decision surface at the top — the one
+    place multiple annotators' text for the same recording is shown together.
+    Each recording also has a `CanonicalAnnotationId`: the annotation used for
+    the `annotation` column of the documented admin export
+    (`GET /api/admin/export`, schema unchanged). It defaults to the first
+    annotation submitted, but an Admin/adjudicator can repoint it to a
+    different rater's text from the IRR report
+    (`PUT /api/recordings/{id}/canonical-annotation`) after reviewing
+    disagreement. A separate IRR export (`GET /api/admin/export/irr`,
+    `columns: recordingId, photoId, sessionId, speakerId, annotatorUserId,
+    annotation, created_at`) has one row per (recording, annotator) pair, for
+    recordings with 2+ annotations only, so agreement/kappa can be computed
+    outside the app. (2026-09-21)
 - **Home page**: on login/invite-accept, Admins land on `/dashboard`; Collectors
   land on their speakers list; Annotators land on their annotation queue.
   (2026-09-16)
@@ -250,3 +284,16 @@ speaker → session → recording capture, annotation, CSV/XLSX export all verif
 against a real Postgres instance). Not yet deployed to a real VPS; S3 (or
 S3-compatible) and Gmail credentials still need to be filled in before photo
 sync / audio upload-playback / real email delivery will work.
+
+IRR support (sampled multi-annotator recordings, blind annotation queue,
+admin IRR report with word-level agreement scoring, canonical-annotation
+export override, IRR export) is implemented and covered by backend unit
+tests (`backend/tests/RecordingApp.Tests/ExportServiceTests.cs` and
+`TextSimilarityTests.cs`, EF Core InMemory provider) plus a clean
+`dotnet build`/`dotnet test`; the `AddIrrAnnotationSupport` EF Core migration
+was generated via `dotnet ef migrations add` but has not yet been applied
+against a real running Postgres instance in this environment (no DB access
+in this sandbox) — run it (`dotnet ef database update`) and re-verify against
+real Postgres before relying on it in production. The migration backfills
+`CanonicalAnnotationId` for recordings that already had an annotation before
+this feature existed. (2026-09-21)

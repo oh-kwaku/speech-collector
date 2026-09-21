@@ -66,12 +66,25 @@ public class RecordingAppDbContext(DbContextOptions<RecordingAppDbContext> optio
             e.HasOne(r => r.Session).WithMany(s => s.Recordings).HasForeignKey(r => r.SessionId);
             e.HasOne(r => r.Photo).WithMany().HasForeignKey(r => r.PhotoId);
             e.HasIndex(r => r.S3Key).IsUnique();
+            // IRR: recordings that existed before this column was added, and
+            // any inserted without setting it explicitly, are single-annotator
+            // (0 would wrongly mean "needs no annotator" and drop them out of
+            // every queue immediately).
+            e.Property(r => r.RequiredAnnotatorCount).HasDefaultValue(1);
+            // Which of this recording's annotations is canonical for export.
+            // No inverse nav (an Annotation doesn't need to know it's canonical),
+            // and SetNull so deleting an annotation never blocks on this FK.
+            e.HasOne(r => r.CanonicalAnnotation).WithMany()
+                .HasForeignKey(r => r.CanonicalAnnotationId).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Annotation>(e =>
         {
-            e.HasOne(a => a.Recording).WithOne(r => r.Annotation).HasForeignKey<Annotation>(a => a.RecordingId);
-            e.HasIndex(a => a.RecordingId).IsUnique();
+            // IRR: many annotations per recording, but at most one per
+            // (recording, annotator) pair - a given annotator can't annotate
+            // the same recording twice.
+            e.HasOne(a => a.Recording).WithMany(r => r.Annotations).HasForeignKey(a => a.RecordingId);
+            e.HasIndex(a => new { a.RecordingId, a.AnnotatorUserId }).IsUnique();
         });
     }
 }
