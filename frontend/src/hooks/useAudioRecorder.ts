@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export type RecorderStatus = 'idle' | 'recording' | 'recorded'
 
@@ -11,14 +11,40 @@ export function useAudioRecorder() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
+  const streamPromiseRef = useRef<Promise<MediaStream> | null>(null)
   const startedAtRef = useRef<number>(0)
   const blobRef = useRef<Blob | null>(null)
+
+  // Acquires (and caches) the mic stream without starting a recording, so the
+  // getUserMedia/permission-prompt latency happens while the child is still
+  // looking at the photo instead of after they've already started talking.
+  const ensureStream = useCallback(() => {
+    if (streamRef.current?.active) return Promise.resolve(streamRef.current)
+    if (!streamPromiseRef.current) {
+      streamPromiseRef.current = navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          streamRef.current = stream
+          return stream
+        })
+        .finally(() => {
+          streamPromiseRef.current = null
+        })
+    }
+    return streamPromiseRef.current
+  }, [])
+
+  const prepare = useCallback(() => {
+    ensureStream().catch(() => {
+      // Swallow here — the same error will surface when the user actually
+      // taps Record, at which point showing it is actionable.
+    })
+  }, [ensureStream])
 
   const start = useCallback(async () => {
     setError(null)
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
+      const stream = await ensureStream()
       chunksRef.current = []
       const recorder = new MediaRecorder(stream)
       mediaRecorderRef.current = recorder
@@ -30,7 +56,9 @@ export function useAudioRecorder() {
         blobRef.current = blob
         setAudioUrl(URL.createObjectURL(blob))
         setDurationSeconds(Math.round((Date.now() - startedAtRef.current) / 1000))
-        streamRef.current?.getTracks().forEach((t) => t.stop())
+        // Keep the stream open (don't stop its tracks) so the next take on
+        // this page can start recording instantly instead of re-requesting
+        // the mic and re-incurring this same startup lag.
         setStatus('recorded')
       }
       startedAtRef.current = Date.now()
@@ -39,7 +67,7 @@ export function useAudioRecorder() {
     } catch {
       setError('Microphone access was denied or is unavailable.')
     }
-  }, [])
+  }, [ensureStream])
 
   const stop = useCallback(() => {
     mediaRecorderRef.current?.stop()
@@ -54,7 +82,15 @@ export function useAudioRecorder() {
     setStatus('idle')
   }, [audioUrl])
 
+  const release = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+    streamRef.current = null
+  }, [])
+
+  // Release the mic when the page is left, however that happens.
+  useEffect(() => release, [release])
+
   const getBlob = useCallback(() => blobRef.current, [])
 
-  return { status, audioUrl, durationSeconds, error, start, stop, reset, getBlob }
+  return { status, audioUrl, durationSeconds, error, prepare, start, stop, reset, getBlob }
 }

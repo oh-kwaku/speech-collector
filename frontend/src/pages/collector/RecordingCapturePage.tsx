@@ -27,6 +27,10 @@ export default function RecordingCapturePage() {
     if (!sessionId) return
     loadCount()
     loadNextPhoto()
+    // Warm up the mic as soon as the page opens, so the getUserMedia/permission
+    // latency is absorbed before the child starts talking rather than after
+    // they tap Record (which was causing the first word(s) to be missed).
+    recorder.prepare()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
@@ -111,6 +115,16 @@ export default function RecordingCapturePage() {
           <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <img src={photo.url} alt="Describe what you see" className="aspect-square w-full object-contain" />
           </div>
+
+          {phase !== 'saved' && (
+            <button
+              onClick={loadNextPhoto}
+              disabled={recorder.status !== 'idle'}
+              className="mb-4 w-full rounded-lg border border-slate-300 py-3 font-medium text-slate-700 disabled:opacity-50"
+            >
+              🔀 Get another photo
+            </button>
+          )}
 
           {errorMessage && <p className="mb-3 text-sm text-red-600">{errorMessage}</p>}
           {recorder.error && <p className="mb-3 text-sm text-red-600">{recorder.error}</p>}

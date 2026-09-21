@@ -101,7 +101,6 @@ export default function SpeakersListPage() {
               </option>
               <option value="Female">Female</option>
               <option value="Male">Male</option>
-              <option value="Other">Other</option>
             </select>
           </div>
           <div>
@@ -115,7 +114,13 @@ export default function SpeakersListPage() {
               value={ageYears}
               onChange={(e) => setAgeYears(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base"
-            />
+            >
+              {Array.from({ length: 10 }, (_, i) => i + 3).map((age) => (
+                <option key={age} value={age}>
+                  {age}
+                </option>
+              ))}
+            </select>
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex gap-2">

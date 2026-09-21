@@ -77,7 +77,10 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${tokens.accessToken}`
         return api(original)
       }
-      window.location.assign('/login')
+      // Plain browser navigation, outside React Router, so the base path
+      // (e.g. "/speech-collector/" on GitHub Pages) has to be prepended
+      // manually — router `basename` doesn't apply here.
+      window.location.assign(`${import.meta.env.BASE_URL}login`)
     }
     return Promise.reject(error)
   },
