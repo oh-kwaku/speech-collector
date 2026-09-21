@@ -33,6 +33,7 @@ export interface RecordingSession {
 export interface Photo {
   id: string
   url: string
+  fileName: string
 }
 
 export interface Recording {
@@ -117,6 +118,7 @@ export interface AdminUser {
 export interface AdminStats {
   totalRecordings: number
   totalAnnotations: number
+  totalAudioDurationSeconds: number
   recordingsByGender: Record<string, number>
   recordingsByAge: Record<string, number>
 }

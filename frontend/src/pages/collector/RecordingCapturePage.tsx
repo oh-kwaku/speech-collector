@@ -114,6 +114,9 @@ export default function RecordingCapturePage() {
         <>
           <div className="mb-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <img src={photo.url} alt="Describe what you see" className="aspect-square w-full object-contain" />
+            <p className="truncate border-t border-slate-100 px-3 py-1.5 text-center text-xs text-slate-400">
+              {photo.fileName}
+            </p>
           </div>
 
           {phase !== 'saved' && (

@@ -6,6 +6,15 @@ import { getMyAnnotatorStats } from '../api/annotations'
 import { getMyCollectorStats } from '../api/speakers'
 import type { AdminStats, AnnotatorStats, CollectorStats, UserWorkStats } from '../types'
 
+function formatDuration(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  if (hours > 0) return `${hours}h ${minutes}m`
+  if (minutes > 0) return `${minutes}m ${seconds}s`
+  return `${seconds}s`
+}
+
 function StatTile({ label, value }: { label: string; value: number | string }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -98,9 +107,10 @@ function AdminDashboard() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatTile label="Total recordings" value={stats.totalRecordings} />
         <StatTile label="Total annotations" value={stats.totalAnnotations} />
+        <StatTile label="Total audio duration" value={formatDuration(stats.totalAudioDurationSeconds)} />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <BreakdownList title="Recordings by gender" data={stats.recordingsByGender} />

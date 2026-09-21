@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createAnnotation, listAnnotationQueue } from '../../api/annotations'
 import AudioPlayer from '../../components/AudioPlayer'
+import PhotoModal from '../../components/PhotoModal'
 import type { RecordingQueueEntry } from '../../types'
 
 export default function AnnotationQueuePage() {
@@ -8,6 +9,7 @@ export default function AnnotationQueuePage() {
   const [loading, setLoading] = useState(true)
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null)
 
   useEffect(() => {
     refresh()
@@ -47,11 +49,18 @@ export default function AnnotationQueuePage() {
           {recordings.map((r) => (
             <li key={r.recordingId} className="rounded-2xl border border-slate-200 bg-white p-4">
               <div className="mb-3 flex flex-col gap-3 sm:flex-row">
-                <img
-                  src={r.photoUrl}
-                  alt="Recording prompt"
-                  className="h-40 w-full rounded-lg object-contain sm:w-40"
-                />
+                <button
+                  type="button"
+                  onClick={() => setViewingPhoto(r.photoUrl)}
+                  className="shrink-0 sm:w-40"
+                  aria-label="View photo large"
+                >
+                  <img
+                    src={r.photoUrl}
+                    alt="Recording prompt"
+                    className="h-40 w-full cursor-zoom-in rounded-lg object-contain"
+                  />
+                </button>
                 <div className="flex-1 space-y-2">
                   <AudioPlayer src={r.audioUrl} className="w-full" />
                   <p className="text-xs text-slate-400">
@@ -83,6 +92,7 @@ export default function AnnotationQueuePage() {
           ))}
         </ul>
       )}
+      {viewingPhoto && <PhotoModal src={viewingPhoto} onClose={() => setViewingPhoto(null)} />}
     </div>
   )
 }
