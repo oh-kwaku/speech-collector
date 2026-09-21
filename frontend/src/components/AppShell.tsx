@@ -17,6 +17,7 @@ const NAV_BY_ROLE: Record<string, { to: string; label: string }[]> = {
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/recordings', label: 'Recordings' },
     { to: '/admin/export', label: 'Export' },
+    { to: '/admin/irr', label: 'IRR' },
     { to: '/annotator/queue', label: 'To annotate' },
     { to: '/annotator/all', label: 'All annotations' },
     { to: '/dashboard', label: 'Dashboard' },

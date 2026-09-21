@@ -72,6 +72,40 @@ client- and server-side on speaker creation. 2026-09-21)
     modal (shared `PhotoModal` component; all annotations, collector session
     view, collector history) — so a user can always see what the child was
     describing without leaving the page. (2026-09-16)
+  - **Inter-rater reliability (IRR)**: a Recording can carry multiple
+    independent Annotations (one per annotator), not just one — a
+    `Recording` → `Annotation` is one-to-many, with a unique
+    `(RecordingId, AnnotatorUserId)` DB constraint so the same annotator
+    can't annotate the same recording twice. Decision: only a **random
+    sample** of recordings are double/triple-annotated, not every recording
+    — at confirm time, `Irr:SampleRatePercent` (config, default 20%) of
+    recordings get `Recording.RequiredAnnotatorCount` set to
+    `Irr:TargetAnnotatorsPerRecording` (config, default 2) instead of the
+    normal 1, so only that fraction pays the double-annotation cost. The
+    annotation queue (`GET /api/annotations/queue`) only ever shows a
+    recording to an annotator who hasn't annotated it yet, and never exposes
+    any existing annotation's text, so annotators stay blind to each other's
+    answers while the target is being filled; a recording drops out of every
+    queue once `RequiredAnnotatorCount` is reached. Only the annotation's own
+    author (or an Admin) may edit its text afterward, to preserve
+    independence between raters.
+    Admins get a dedicated `/admin/irr` report showing, for every recording
+    with 2+ annotations, each annotator's text side by side plus a
+    **word-level similarity score** (0–1, edit-distance based — see
+    `RecordingApp.Infrastructure.Irr.TextSimilarity`), sorted lowest-agreement
+    first so recordings most needing a decision surface at the top — the one
+    place multiple annotators' text for the same recording is shown together.
+    Each recording also has a `CanonicalAnnotationId`: the annotation used for
+    the `annotation` column of the documented admin export
+    (`GET /api/admin/export`, schema unchanged). It defaults to the first
+    annotation submitted, but an Admin/adjudicator can repoint it to a
+    different rater's text from the IRR report
+    (`PUT /api/recordings/{id}/canonical-annotation`) after reviewing
+    disagreement. A separate IRR export (`GET /api/admin/export/irr`,
+    `columns: recordingId, photoId, sessionId, speakerId, annotatorUserId,
+    annotation, created_at`) has one row per (recording, annotator) pair, for
+    recordings with 2+ annotations only, so agreement/kappa can be computed
+    outside the app. (2026-09-21)
 - **Home page**: on login/invite-accept, Admins land on `/dashboard`; Collectors
   land on their speakers list; Annotators land on their annotation queue.
   (2026-09-16)
@@ -132,6 +166,20 @@ client- and server-side on speaker creation. 2026-09-21)
 - **Invite/OTP delivery**: email via Gmail SMTP; SMS behind an `ISmsSender`
   interface with a `ConsoleSmsSender` stub (logs codes to the console) — swap in a
   real provider (Twilio/SNS/etc.) later without touching callers.
+- **Frontend `VITE_API_BASE_URL` is read at container startup, not baked in
+  at build time**: a `docker-entrypoint.d/env-config.sh` script in the nginx
+  image regenerates `env-config.js` (loaded by `index.html` before the app
+  bundle, read in `frontend/src/api/client.ts` via `window.__RUNTIME_CONFIG__`)
+  from the container's actual env every time it starts. This was originally
+  a Vite build-time-only `ARG`/`ENV` in `frontend/Dockerfile`, which meant an
+  env var set in Dokploy's Environment tab was silently ignored (nginx never
+  reads env vars, and the value was already permanently baked into the JS
+  bundle at `npm run build`) — changing it needed a Dokploy *Build Arg* and a
+  full rebuild. Now a plain Environment Variable + restart is enough on
+  either Dokploy topology below; the build-time `ARG` still sets the
+  fallback default (`/api`) used by `vite build`/`vite preview` without
+  Docker, and by the GitHub Pages build below, which has no running
+  container to read env vars from at all. (2026-09-20)
 - **Deployment**: production runs on a VPS via **Dokploy**. `web` and `api`
   are each deployed as their own Dokploy "Application" (Dockerfile)
   service — `web` from `frontend/Dockerfile`, `api` from `backend/Dockerfile`
@@ -139,26 +187,14 @@ client- and server-side on speaker creation. 2026-09-21)
   built-in Database feature; MinIO (the default S3-compatible object store)
   is its own standalone Dokploy app. No Caddy: Dokploy's own Traefik handles
   HTTPS/domain routing per service via its dashboard. (2026-09-20)
-  - **Frontend build args vs. env vars**: Vite env vars (`VITE_API_BASE_URL`
-    etc.) are baked into the static bundle at `npm run build` time inside
-    `frontend/Dockerfile`'s build stage (`ARG VITE_API_BASE_URL=/api`) — the
-    final image is plain nginx serving static files, which never reads env
-    vars at runtime. In Dokploy's per-app settings this value must go under
-    **Build Args**, not Environment Variables — Environment Variables are
-    only passed to the running container and are silently ignored for this
-    var. Changing it always requires a rebuild, not just a restart.
-    (2026-09-20)
   - `docker-compose.dokploy.yml` bundles the whole stack (Postgres, MinIO +
     `minio-init`, API, web) as a single Dokploy "Docker Compose" application
     instead — kept as an alternative/reference deployment path, not the one
-    currently in use. Same build-arg caveat applies there:
-    `web.build.args.VITE_API_BASE_URL` must reference
-    `${VITE_API_BASE_URL:-/api}` (not a hardcoded value) so the Dokploy
-    Environment tab value reaches the build. Its bundled MinIO needs its own
-    Dokploy-configured subdomain (routed to container port 9000) since the
-    API hands out pre-signed URLs the browser must resolve directly; the
-    MinIO admin console is intentionally not exposed via a domain (reach it
-    via SSH port forwarding). (2026-09-16, revised 2026-09-20)
+    currently in use. Its bundled MinIO needs its own Dokploy-configured
+    subdomain (routed to container port 9000) since the API hands out
+    pre-signed URLs the browser must resolve directly; the MinIO admin
+    console is intentionally not exposed via a domain (reach it via SSH port
+    forwarding). (2026-09-16, revised 2026-09-20)
   - `docker-compose.yml` (plain, no Dokploy) is separate and only for local
     dev. Default (`docker compose up -d`, no `.env` needed) starts just
     Postgres + MinIO backing services; the API/frontend run natively against
@@ -170,6 +206,19 @@ client- and server-side on speaker creation. 2026-09-21)
     usable, and uses host networking on the `api` service (Linux-only) since
     the app's S3 pre-signed URLs need the same hostname to resolve for both
     the container and the browser. (2026-09-19)
+- **GitHub Pages**: the frontend alone can also be published as a static
+  site (`frontend/`'s `npm run deploy`, via the `gh-pages` package pushing
+  `dist/` to a `gh-pages` branch) — independent of the Dokploy deployment
+  above, for a demo/staging frontend against a backend deployed elsewhere.
+  Since there's no container at all here, `VITE_API_BASE_URL` must be passed
+  at build time (`VITE_API_BASE_URL=https://... npm run deploy`); the target
+  API's CORS config (`Cors:AllowedOrigins`) must allow the
+  `https://<owner>.github.io` origin. `vite.config.ts`'s `base:
+  '/speech-collector/'` must match the repo name (GitHub Pages project sites
+  are served from `/<repo>/`). Client-side routes survive refresh/deep-link
+  despite GitHub Pages having no rewrite rules, via a redirect trick in
+  `frontend/public/404.html` + `frontend/index.html`. See README for full
+  steps. (2026-09-20)
 
 ## Where things live
 
@@ -192,3 +241,16 @@ speaker → session → recording capture, annotation, CSV/XLSX export all verif
 against a real Postgres instance). Not yet deployed to a real VPS; S3 (or
 S3-compatible) and Gmail credentials still need to be filled in before photo
 sync / audio upload-playback / real email delivery will work.
+
+IRR support (sampled multi-annotator recordings, blind annotation queue,
+admin IRR report with word-level agreement scoring, canonical-annotation
+export override, IRR export) is implemented and covered by backend unit
+tests (`backend/tests/RecordingApp.Tests/ExportServiceTests.cs` and
+`TextSimilarityTests.cs`, EF Core InMemory provider) plus a clean
+`dotnet build`/`dotnet test`; the `AddIrrAnnotationSupport` EF Core migration
+was generated via `dotnet ef migrations add` but has not yet been applied
+against a real running Postgres instance in this environment (no DB access
+in this sandbox) — run it (`dotnet ef database update`) and re-verify against
+real Postgres before relying on it in production. The migration backfills
+`CanonicalAnnotationId` for recordings that already had an annotation before
+this feature existed. (2026-09-21)

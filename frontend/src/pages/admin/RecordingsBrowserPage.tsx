@@ -60,10 +60,16 @@ export default function RecordingsBrowserPage() {
                 </p>
                 <span
                   className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                    r.isAnnotated ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    r.annotationCount >= r.requiredAnnotatorCount
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'bg-amber-100 text-amber-700'
                   }`}
                 >
-                  {r.isAnnotated ? 'Annotated' : 'Pending annotation'}
+                  {r.requiredAnnotatorCount > 1
+                    ? `Annotated ${r.annotationCount}/${r.requiredAnnotatorCount}` // IRR: sampled for double/triple-annotation
+                    : r.annotationCount > 0
+                      ? 'Annotated'
+                      : 'Pending annotation'}
                 </span>
               </div>
               <AudioPlayer src={r.audioUrl} className="w-full sm:w-56" />

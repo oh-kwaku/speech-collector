@@ -15,7 +15,8 @@ namespace RecordingApp.Api.Controllers;
 public class RecordingsController(
     RecordingAppDbContext db,
     IStorageService storage,
-    ICurrentUser currentUser) : ControllerBase
+    ICurrentUser currentUser,
+    IConfiguration config) : ControllerBase
 {
     [HttpGet("photos/next")]
     [Authorize(Roles = "Collector")]
@@ -51,7 +52,7 @@ public class RecordingsController(
         var recordings = await db.Recordings
             .Where(r => r.SessionId == sessionId && r.IsConfirmed)
             .Include(r => r.Photo)
-            .Include(r => r.Annotation)
+            .Include(r => r.Annotations)
             .OrderBy(r => r.CreatedAt)
             .ToListAsync(ct);
 
@@ -67,7 +68,7 @@ public class RecordingsController(
             db.Recordings.Where(r => r.CreatedByUserId == currentUser.Id && r.IsConfirmed),
             from, to)
             .Include(r => r.Photo)
-            .Include(r => r.Annotation);
+            .Include(r => r.Annotations);
 
         var recordings = await query.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
         return Ok(recordings.Select(ToDto));
@@ -147,6 +148,14 @@ public class RecordingsController(
         recording.S3Key = dto.S3Key;
         recording.DurationSeconds = dto.DurationSeconds;
         recording.IsConfirmed = true;
+        // IRR: decide, once, whether this recording needs more than one
+        // independent annotator. A random Irr:SampleRatePercent of recordings
+        // are routed to Irr:TargetAnnotatorsPerRecording annotators instead of
+        // just 1, so only a configurable fraction pay the double-annotation
+        // cost rather than every recording being annotated twice.
+        var sampleRatePercent = Math.Clamp(config.GetValue("Irr:SampleRatePercent", 20), 0, 100);
+        var targetAnnotatorCount = Math.Max(2, config.GetValue("Irr:TargetAnnotatorsPerRecording", 2));
+        recording.RequiredAnnotatorCount = Random.Shared.Next(100) < sampleRatePercent ? targetAnnotatorCount : 1;
         await db.SaveChangesAsync(ct);
 
         return Ok(ToDto(recording));
@@ -156,9 +165,9 @@ public class RecordingsController(
     [Authorize(Roles = "Annotator,Admin")]
     public async Task<ActionResult<List<RecordingDto>>> ListAll([FromQuery] bool? annotated, CancellationToken ct)
     {
-        var query = db.Recordings.Where(r => r.IsConfirmed).Include(r => r.Photo).Include(r => r.Annotation).AsQueryable();
-        if (annotated is true) query = query.Where(r => r.Annotation != null);
-        if (annotated is false) query = query.Where(r => r.Annotation == null);
+        var query = db.Recordings.Where(r => r.IsConfirmed).Include(r => r.Photo).Include(r => r.Annotations).AsQueryable();
+        if (annotated is true) query = query.Where(r => r.Annotations.Count >= r.RequiredAnnotatorCount);
+        if (annotated is false) query = query.Where(r => r.Annotations.Count < r.RequiredAnnotatorCount);
 
         var recordings = await query.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
         return Ok(recordings.Select(ToDto));
@@ -174,7 +183,8 @@ public class RecordingsController(
         r.DurationSeconds,
         r.CreatedByUserId,
         r.CreatedAt,
-        r.Annotation != null);
+        r.Annotations.Count,
+        r.RequiredAnnotatorCount);
 }
 
 public record CreateUploadUrlDto(Guid PhotoId);
