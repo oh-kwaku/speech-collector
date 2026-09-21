@@ -17,10 +17,15 @@ const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
 export default defineConfig({
   // GitHub Pages serves this project site at
   // https://<owner>.github.io/speech-collector/, so assets must be
-  // requested from that subpath rather than the domain root. Dokploy/Docker
-  // deployments serve from the domain root and are unaffected: nginx.conf
-  // there doesn't depend on this value.
-  base: '/speech-collector/',
+  // requested from that subpath rather than the domain root — but Dokploy/
+  // Docker deployments serve from the domain root, and nginx.conf there
+  // only maps a plain "/assets/" prefix, so this must NOT apply to those
+  // builds: doing so unconditionally baked "/speech-collector/" into
+  // index.html's asset paths for the Docker image too, 404ing every JS/CSS
+  // request (nginx's SPA fallback then served index.html back in place of
+  // the missing bundle, i.e. a blank page). Only `npm run deploy`/the
+  // gh-pages workflow set GH_PAGES=true. (2026-09-20)
+  base: process.env.GH_PAGES === 'true' ? '/speech-collector/' : '/',
   plugins: [react(), tailwindcss()],
   server: {
     host: true,

@@ -44,7 +44,9 @@ exported as training data.
   (`BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PHONE` in `.env`). See README "First
   login" section.
 - **Speaker capture flow** (Collector):
-  1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel.
+  1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel. Gender is a
+     dropdown restricted to Male/Female. Age is a dropdown of whole years 3–12
+     (not free-entry). (2026-09-20)
   2. On Save: a speaker ID is generated server-side and saved with the form data.
   3. Navigates to a "Speaker {id}" page where recording sessions begin.
 - **Recording flow** (Collector, on the Speaker's session page):
@@ -54,6 +56,12 @@ exported as training data.
      - Cancel exits back to the list of recordings for that speaker session.
      - After Save, a **Next** button appears that loads a new photo to start
        another recording.
+     - Before recording starts, a **"Get another photo"** button lets the
+       Collector randomly swap the current photo for a different one (reuses
+       the same random-unused-photo selection as "Next photo") without
+       affecting the recordings counter. It's disabled once recording has
+       started (covers recording/recorded, i.e. anything past idle), since
+       retake reuses the same photo rather than picking a new one. (2026-09-20)
   3. A counter showing the number of recordings for that speaker session is shown
      at the top of the recording page.
 - **Annotator UI**: a page/queue to annotate recordings, plus a view of all
@@ -210,14 +218,50 @@ exported as training data.
   `dist/` to a `gh-pages` branch) — independent of the Dokploy deployment
   above, for a demo/staging frontend against a backend deployed elsewhere.
   Since there's no container at all here, `VITE_API_BASE_URL` must be passed
-  at build time (`VITE_API_BASE_URL=https://... npm run deploy`); the target
-  API's CORS config (`Cors:AllowedOrigins`) must allow the
-  `https://<owner>.github.io` origin. `vite.config.ts`'s `base:
+  at build time (`VITE_API_BASE_URL=https://... npm run deploy`, run
+  locally); the target API's CORS config (`Cors:AllowedOrigins`) must allow
+  the `https://<owner>.github.io` origin. `vite.config.ts`'s `base:
   '/speech-collector/'` must match the repo name (GitHub Pages project sites
   are served from `/<repo>/`). Client-side routes survive refresh/deep-link
   despite GitHub Pages having no rewrite rules, via a redirect trick in
   `frontend/public/404.html` + `frontend/index.html`. See README for full
   steps. (2026-09-20)
+  - `.github/workflows/deploy-gh-pages.yml` automates the above: runs on
+    push to the `frontend`/`master` branches touching `frontend/**` or via
+    manual `workflow_dispatch`, builds with `VITE_API_BASE_URL` sourced from
+    a GitHub Actions variable — not a secret, since it ends up in public
+    client-side JS regardless — and pushes `frontend/dist` to `gh-pages` via
+    `peaceiris/actions-gh-pages` using the built-in `GITHUB_TOKEN`
+    (`permissions: contents: write`, no extra secrets to configure). The
+    manual `npm run deploy` path still works as a fallback but pushes to the
+    same branch, so don't run both for one release. The job declares
+    `environment: github-pages` so it can read `vars.VITE_API_BASE_URL` set
+    under Settings → Environments → `github-pages` → Environment variables
+    — a *repository*-level variable (Settings → Secrets and variables →
+    Actions → Variables tab) needs no `environment:` key instead; a job
+    without a matching `environment:` key silently sees neither the
+    Environment's variables nor its secrets. (2026-09-20)
+  - GitHub Pages serves the app at `/speech-collector/`, so
+    `BrowserRouter` in `frontend/src/main.tsx` needs
+    `basename={import.meta.env.BASE_URL}` — without it, React Router
+    resolves every `<Navigate>`/redirect against the domain root (e.g.
+    `/login` instead of `/speech-collector/login`), 404ing after auth
+    redirects. The one raw `window.location.assign(...)` outside router
+    context (401 handler in `frontend/src/api/client.ts`) needs the same
+    `import.meta.env.BASE_URL` prefix manually, since `basename` doesn't
+    apply to it. (2026-09-20)
+  - `frontend/vite.config.ts`'s `base` must NOT be an unconditional
+    `/speech-collector/` — that also bakes the prefix into the **Docker**
+    build's `dist/index.html` asset paths, but `nginx.conf` there serves
+    from `/` and only maps `/assets/`, so every JS/CSS request 404s and
+    nginx's SPA fallback (`try_files $uri /index.html`) serves back
+    `index.html` in their place — a blank page, no console error beyond a
+    script-parse failure. Fixed by making `base` conditional:
+    `process.env.GH_PAGES === 'true' ? '/speech-collector/' : '/'`, with
+    `GH_PAGES=true` set only by `frontend/package.json`'s `predeploy`
+    script and by `deploy-gh-pages.yml`'s build step — the plain
+    `npm run build` used by `frontend/Dockerfile` leaves it unset, so
+    Docker/Dokploy builds still get `base: '/'`. (2026-09-20)
 
 ## Where things live
 

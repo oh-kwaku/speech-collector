@@ -158,14 +158,32 @@ the API's full URL has to be baked into the build instead.
 
 1. One-time GitHub setup: in the repo's Settings → Pages, set **Source** to
    "Deploy from a branch", branch `gh-pages`, folder `/(root)`. (The first
-   `npm run deploy` below creates that branch — you can only select it here
+   deploy, below, creates that branch — you can only select it here
    afterwards.)
 2. Make sure a real backend API is already deployed and reachable over HTTPS
    from the browser (e.g. via Dokploy, above), and that it allows the GitHub
    Pages origin in CORS: set `Cors__AllowedOrigins__0=https://<owner>.github.io`
    in the API's environment (add `Cors__AllowedOrigins__1`, etc. for
    additional origins).
-3. From `frontend/`, build and publish with that API URL baked in:
+3. **Automated (recommended)**: `.github/workflows/deploy-gh-pages.yml`
+   builds and publishes `frontend/` on every push to `frontend`/`master`
+   that touches `frontend/**` (or manually via the Actions tab → "Deploy
+   frontend to GitHub Pages" → Run workflow). It reads `VITE_API_BASE_URL`
+   from the `github-pages` **Environment** (Settings → Environments →
+   `github-pages` → add an **Environment variable** named
+   `VITE_API_BASE_URL`, value `https://api.yourdomain.com`) — it doesn't
+   need to be a secret, since it's just a URL baked into public client-side
+   JS anyway. The workflow's job declares `environment: github-pages` so it
+   can see that scope; if you'd rather use a plain **repository** variable
+   instead (Settings → Secrets and variables → Actions → Variables tab),
+   that works too without needing the `environment:` key at all, but don't
+   set the same name in both places — the Environment one only applies if
+   the job opts into that environment, and a variable set in the wrong
+   scope for how the workflow is written silently reads as unset (falls
+   back to `/api`). The workflow uses the built-in `GITHUB_TOKEN` to push
+   `dist/` to `gh-pages`, so no extra secrets are needed.
+4. **Manual (alternative)**: build and publish from your own machine with
+   that API URL baked in:
 
    ```bash
    cd frontend
@@ -173,8 +191,10 @@ the API's full URL has to be baked into the build instead.
    ```
 
    `npm run deploy` (the `gh-pages` package) runs `npm run build`
-   (`predeploy`) and pushes the resulting `dist/` to the `gh-pages` branch.
-4. The site is served at `https://<owner>.github.io/speech-collector/` —
+   (`predeploy`) and pushes the resulting `dist/` to the `gh-pages` branch —
+   the same target branch the workflow above pushes to, so pick one method
+   per deploy rather than mixing them.
+5. The site is served at `https://<owner>.github.io/speech-collector/` —
    `vite.config.ts`'s `base: '/speech-collector/'` must match the repo name,
    since GitHub Pages project sites are served from that subpath. Update it
    if the repo is ever renamed.
