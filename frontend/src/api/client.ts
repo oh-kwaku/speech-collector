@@ -21,8 +21,21 @@ export function storeTokens(tokens: AuthTokens | null) {
   }
 }
 
+declare global {
+  interface Window {
+    __RUNTIME_CONFIG__?: { VITE_API_BASE_URL?: string }
+  }
+}
+
+// Runtime value (injected into env-config.js by docker-entrypoint.d/env-config.sh
+// from the container's actual env at startup) takes priority over the
+// build-time value, so changing VITE_API_BASE_URL in Dokploy just needs a
+// restart, not a rebuild. Falls back to the build-time value for
+// `vite build`/`vite preview` without Docker.
+const runtimeApiBaseUrl = window.__RUNTIME_CONFIG__?.VITE_API_BASE_URL
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: runtimeApiBaseUrl || import.meta.env.VITE_API_BASE_URL || '/api',
 })
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {

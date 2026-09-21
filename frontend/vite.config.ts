@@ -15,6 +15,12 @@ const hasCerts = fs.existsSync(keyPath) && fs.existsSync(certPath)
 
 // https://vite.dev/config/
 export default defineConfig({
+  // GitHub Pages serves this project site at
+  // https://<owner>.github.io/speech-collector/, so assets must be
+  // requested from that subpath rather than the domain root. Dokploy/Docker
+  // deployments serve from the domain root and are unaffected: nginx.conf
+  // there doesn't depend on this value.
+  base: '/speech-collector/',
   plugins: [react(), tailwindcss()],
   server: {
     host: true,

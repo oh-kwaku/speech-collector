@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Speech Collector</title>
+    <script type="text/javascript">
+      // GitHub Pages is a static file host: it has no server-side rewrite
+      // rule to send every client-side route (e.g. /dashboard) to
+      // index.html, so it 404s on refresh/deep-link. GitHub Pages does serve
+      // this 404.html for any unmatched path, so we use it to redirect back
+      // to index.html with the original path encoded in the query string;
+      // index.html then decodes it before React Router reads the URL.
+      // Technique: https://github.com/rafgraph/spa-github-pages
+      var pathSegmentsToKeep = 1 // keep "/speech-collector"
+
+      var l = window.location
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') +
+          '/?/' +
+          l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash,
+      )
+    </script>
+  </head>
+  <body></body>
+</html>
