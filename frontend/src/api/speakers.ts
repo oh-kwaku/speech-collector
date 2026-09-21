@@ -9,6 +9,10 @@ export function createSpeaker(data: { gender: string; ageYears: number }) {
   return api.post<Speaker>('/speakers', data)
 }
 
+export function updateSpeaker(speakerId: string, data: { gender: string; ageYears: number }) {
+  return api.put<Speaker>(`/speakers/${speakerId}`, data)
+}
+
 export function getOrCreateActiveSession(speakerId: string) {
   return api.post<RecordingSession>(`/speakers/${speakerId}/sessions/active`)
 }

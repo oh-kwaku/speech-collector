@@ -50,6 +50,13 @@ client- and server-side on speaker creation. 2026-09-21)
      (not free-entry). (2026-09-20)
   2. On Save: a speaker ID is generated server-side and saved with the form data.
   3. Navigates to a "Speaker {id}" page where recording sessions begin.
+  4. A Collector can edit a speaker's Gender/Age later from an "Edit" button
+     next to that speaker on their Speakers list — same inline
+     dropdown-only form, same 3–12 age validation, server-enforced. Only the
+     Collector who created a speaker can view/edit it (`PUT
+     /api/speakers/{speakerId}`, restricted to the creator; no separate
+     permission for other Collectors or Annotators to edit speaker info).
+     (2026-09-21)
 - **Recording flow** (Collector, on the Speaker's session page):
   1. Tap "New recording" → opens a page showing a photo for the child to describe.
   2. Controls: **Record, Stop, Play, Retake, Save, Cancel**.
@@ -65,6 +72,9 @@ client- and server-side on speaker creation. 2026-09-21)
        retake reuses the same photo rather than picking a new one. (2026-09-20)
   3. A counter showing the number of recordings for that speaker session is shown
      at the top of the recording page.
+  4. The photo's underlying file name (from its S3 key) is shown under the
+     photo on the recording screen, so a Collector can cross-reference it
+     against the source bucket if needed. (2026-09-21)
 - **Annotator UI**: a page/queue to annotate recordings, plus a view of all
   annotations already made. Admins also have annotation permission (can use the
   same queue/all-annotations views as Annotators). (2026-09-16)
@@ -79,7 +89,10 @@ client- and server-side on speaker creation. 2026-09-21)
     browser) or as a "View photo" button that opens the photo in an in-page
     modal (shared `PhotoModal` component; all annotations, collector session
     view, collector history) — so a user can always see what the child was
-    describing without leaving the page. (2026-09-16)
+    describing without leaving the page. (2026-09-16) The annotation queue's
+    inline thumbnail is also click-to-enlarge via the same `PhotoModal`, so
+    an Annotator can view any photo in large mode before writing the
+    annotation. (2026-09-21)
   - **Inter-rater reliability (IRR)**: a Recording can carry multiple
     independent Annotations (one per annotator), not just one — a
     `Recording` → `Annotation` is one-to-many, with a unique
@@ -121,11 +134,12 @@ client- and server-side on speaker creation. 2026-09-21)
   (confirmed) recordings filtered by a date range, across speakers/sessions, at
   `/collector/history`. (2026-09-16)
 - **Dashboards** (`/dashboard`, content varies by role): (2026-09-16)
-  - Admin: total recordings, total annotations, recordings broken down by
-    speaker gender and by speaker age, plus a per-user work summary table
-    (Name, Location, total recordings, total speakers, total annotations —
-    deliberately excludes email/phone/role, which live on the Users page
-    instead). (2026-09-16)
+  - Admin: total recordings, total annotations, total audio duration (summed
+    `DurationSeconds` across confirmed recordings, formatted h/m/s), recordings
+    broken down by speaker gender and by speaker age, plus a per-user work
+    summary table (Name, Location, total recordings, total speakers, total
+    annotations — deliberately excludes email/phone/role, which live on the
+    Users page instead). (2026-09-16, total audio duration added 2026-09-21)
   - Annotator: total annotations they personally have made.
   - Collector: total speakers they've recorded, total confirmed/unconfirmed
     recordings, all filterable by date range; links to their full history
