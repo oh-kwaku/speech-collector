@@ -27,6 +27,10 @@ export default function RecordingCapturePage() {
     if (!sessionId) return
     loadCount()
     loadNextPhoto()
+    // Warm up the mic as soon as the page opens, so the getUserMedia/permission
+    // latency is absorbed before the child starts talking rather than after
+    // they tap Record (which was causing the first word(s) to be missed).
+    recorder.prepare()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
