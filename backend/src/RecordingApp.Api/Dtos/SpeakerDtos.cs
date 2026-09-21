@@ -30,4 +30,8 @@ public record RecordingDto(
     int DurationSeconds,
     Guid CreatedByUserId,
     DateTimeOffset CreatedAt,
-    bool IsAnnotated);
+    // IRR: how many independent annotators have annotated this recording so
+    // far, out of how many it was sampled to need (1, unless it was randomly
+    // selected for double/triple-annotation at confirm time).
+    int AnnotationCount,
+    int RequiredAnnotatorCount);
