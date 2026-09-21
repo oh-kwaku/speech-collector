@@ -14,7 +14,14 @@
     <configurations />
   </component>
   <component name="ChangeListManager">
+<<<<<<< HEAD
+    <list default="true" id="90f01ed0-c3f2-4df1-8cef-d45e93ae44ef" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.RecordingApp/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.RecordingApp/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/RecordingApp.Api/Controllers/AuthController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/RecordingApp.Api/Controllers/AuthController.cs" afterDir="false" />
+    </list>
+=======
     <list default="true" id="90f01ed0-c3f2-4df1-8cef-d45e93ae44ef" name="Changes" comment="" />
+>>>>>>> refs/remotes/Speech-collector/backend
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -29,10 +36,17 @@
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="QODANA_PROBLEMS_VIEW_TAB" />
   </component>
+<<<<<<< HEAD
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3,
+  &quot;fromUser&quot;: false
+}</component>
+=======
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 3,
   "fromUser": false
 }]]></component>
+>>>>>>> refs/remotes/Speech-collector/backend
   <component name="ProjectId" id="3JbKuKW52a2JqLjZDUyXbmAUjGe" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -49,7 +63,11 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "cidr.known.project.marker": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
+<<<<<<< HEAD
+    "git-widget-placeholder": "master",
+=======
     "git-widget-placeholder": "frontend",
+>>>>>>> refs/remotes/Speech-collector/backend
     "last_opened_file_path": "/home/academic/Developments/Research/Recording app/backend/RecordingApp.sln",
     "node.js.detected.package.eslint": "true",
     "node.js.detected.package.tslint": "true",

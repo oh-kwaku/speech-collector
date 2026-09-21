@@ -27,7 +27,7 @@ public class SpeakersController(RecordingAppDbContext db, ICurrentUser currentUs
     [HttpPost("speakers")]
     public async Task<ActionResult<SpeakerDto>> Create(CreateSpeakerDto dto, CancellationToken ct)
     {
-        if (dto.AgeYears is < 5 or > 10) return BadRequest("Age must be between 5 and 10.");
+        if (dto.AgeYears is < 3 or > 12) return BadRequest("Age must be between 3 and 12.");
 
         string id;
         do

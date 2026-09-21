@@ -16,3 +16,5 @@ frontend/certs/
 # OS / editor
 .DS_Store
 *.swp
+
+backend/.idea/.idea.RecordingApp/.idea/workspace.xml
