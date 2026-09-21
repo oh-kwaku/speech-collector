@@ -1,6 +1,6 @@
 # Speech Collector
 
-Data collection app for capturing children's (ages 5-10) speech: a photo is shown,
+Data collection app for capturing children's (ages 3-12) speech: a photo is shown,
 the child describes it, a **Collector** records the audio, an **Annotator**
 transcribes it, and an **Admin** manages users and exports metadata for the ML
 pipeline. Speakers are identified only by a generated `speakerId` + gender + age —

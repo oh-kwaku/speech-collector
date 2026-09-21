@@ -16,3 +16,8 @@ frontend/certs/
 # OS / editor
 .DS_Store
 *.swp
+<<<<<<< Updated upstream
+=======
+backend/.idea/.idea.RecordingApp/.idea/workspace.xml
+backend/.idea/.idea.RecordingApp/.idea/workspace.xml
+>>>>>>> Stashed changes

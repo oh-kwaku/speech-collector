@@ -10,9 +10,10 @@
 
 ## What this app is
 
-A data collection tool for an ML project: children ages 5–10 are shown a photo and
+A data collection tool for an ML project: children ages 3–12 are shown a photo and
 describe what they see out loud. The audio is recorded, transcribed/annotated, and
-exported as training data.
+exported as training data. (Age range widened from 5–10 to 3–12; enforced both
+client- and server-side on speaker creation. 2026-09-21)
 
 ## Roles
 

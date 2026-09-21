@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { createSpeaker, getOrCreateActiveSession, listSpeakers } from '../../api/speakers'
 import type { Speaker } from '../../types'
@@ -7,8 +8,8 @@ export default function SpeakersListPage() {
   const [speakers, setSpeakers] = useState<Speaker[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [gender, setGender] = useState('Female')
-  const [ageYears, setAgeYears] = useState(6)
+  const [gender, setGender] = useState('')
+  const [ageYears, setAgeYears] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
@@ -24,17 +25,45 @@ export default function SpeakersListPage() {
     navigate(`/collector/speakers/${speakerId}/sessions/${session.data.id}`)
   }
 
+  function openForm() {
+    setGender('')
+    setAgeYears('')
+    setError(null)
+    setShowForm(true)
+  }
+
+  function closeForm() {
+    setShowForm(false)
+    setGender('')
+    setAgeYears('')
+    setError(null)
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
+    const age = Number(ageYears)
+    if (!gender) {
+      setError('Please select a gender.')
+      return
+    }
+    if (!ageYears || Number.isNaN(age) || age < 3 || age > 12) {
+      setError('Age must be between 3 and 12.')
+      return
+    }
+
     setSaving(true)
     try {
-      const res = await createSpeaker({ gender, ageYears })
-      setShowForm(false)
+      const res = await createSpeaker({ gender, ageYears: age })
+      closeForm()
       setSpeakers((prev) => [res.data, ...prev])
       await goToSpeaker(res.data.id)
-    } catch {
-      setError('Could not save the speaker. Please try again.')
+    } catch (err) {
+      const message =
+        (axios.isAxiosError(err) && typeof err.response?.data === 'string' && err.response.data) ||
+        'Could not save the speaker. Please try again.'
+      setError(message)
     } finally {
       setSaving(false)
     }
@@ -46,7 +75,7 @@ export default function SpeakersListPage() {
         <h1 className="text-lg font-semibold text-slate-900">Speakers</h1>
         {!showForm && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openForm}
             className="rounded-lg bg-slate-900 px-4 py-3 text-sm font-medium text-white"
           >
             + New speaker
@@ -64,8 +93,12 @@ export default function SpeakersListPage() {
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}
+              required
               className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base"
             >
+              <option value="" disabled>
+                Select gender
+              </option>
               <option value="Female">Female</option>
               <option value="Male">Male</option>
               <option value="Other">Other</option>
@@ -75,11 +108,12 @@ export default function SpeakersListPage() {
             <label className="mb-1 block text-sm font-medium text-slate-700">Age</label>
             <input
               type="number"
-              min={5}
-              max={10}
+              min={3}
+              max={12}
               required
+              placeholder="3–12"
               value={ageYears}
-              onChange={(e) => setAgeYears(Number(e.target.value))}
+              onChange={(e) => setAgeYears(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-3 text-base"
             />
           </div>
@@ -87,7 +121,7 @@ export default function SpeakersListPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={closeForm}
               className="flex-1 rounded-lg border border-slate-300 py-3 font-medium text-slate-700"
             >
               Cancel
