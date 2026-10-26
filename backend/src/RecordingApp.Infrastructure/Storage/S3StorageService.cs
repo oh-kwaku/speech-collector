@@ -42,7 +42,7 @@ public class S3StorageService(IAmazonS3 s3Client, IOptions<S3Options> options) :
     {
         var prefix = string.IsNullOrEmpty(_options.AudioPrefix) ? "" : $"{_options.AudioPrefix!.Trim('/')}/";
         var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
-        var fileName = $"{speakerId}_{recordingId}_data_{gender}_{timestamp}.webm";
+        var fileName = $"{speakerId}_{recordingId}_data_{gender}_{timestamp}.wav";
         return $"{prefix}audio/{speakerId}/{sessionId}/{fileName}";
     }
 

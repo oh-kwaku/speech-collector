@@ -7,7 +7,7 @@ import {
   getUploadUrl,
   listSessionRecordings,
 } from '../../api/speakers'
-import { useAudioRecorder } from '../../hooks/useAudioRecorder'
+import { useAudioRecorder, WAV_MIME_TYPE } from '../../hooks/useAudioRecorder'
 import AudioPlayer from '../../components/AudioPlayer'
 import type { Photo } from '../../types'
 
@@ -63,10 +63,9 @@ export default function RecordingCapturePage() {
     try {
       const { data } = await getUploadUrl(sessionId, photo.id)
       // Must match the Content-Type the upload URL was signed with exactly (S3/MinIO
-      // reject a mismatch with 403), not the browser's actual MediaRecorder mime type
-      // (e.g. "audio/webm;codecs=opus"), which varies by browser.
+      // reject a mismatch with 403).
       await axios.put(data.uploadUrl, blob, {
-        headers: { 'Content-Type': 'audio/webm' },
+        headers: { 'Content-Type': WAV_MIME_TYPE },
       })
       await confirmRecording(data.recordingId, {
         s3Key: data.s3Key,

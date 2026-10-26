@@ -131,7 +131,7 @@ public class RecordingsController(
         db.Recordings.Add(recording);
         await db.SaveChangesAsync(ct);
 
-        var uploadUrl = storage.GetAudioUploadUrl(recording.S3Key, "audio/webm");
+        var uploadUrl = storage.GetAudioUploadUrl(recording.S3Key, "audio/wav");
         return Ok(new UploadUrlDto(recording.Id, uploadUrl, recording.S3Key));
     }
 

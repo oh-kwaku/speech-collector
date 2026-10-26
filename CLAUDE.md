@@ -158,8 +158,15 @@ client- and server-side on speaker creation. 2026-09-21)
 - **Photos**: already exist in an S3 bucket — users never upload them; the app
   only references/lists what's already there.
 - **Audio filenames**: stored objects are named
-  `{speakerId}_{audioId}_data_{gender}_{timestamp}.webm` (timestamp = upload-time
+  `{speakerId}_{audioId}_data_{gender}_{timestamp}.wav` (timestamp = upload-time
   UTC timestamp), under an `audio/{speakerId}/{sessionId}/` prefix. (2026-09-16)
+- **Audio format**: 16-bit PCM mono WAV at 16 kHz (`audio/wav`), the standard
+  ASR training input. Was browser-default MediaRecorder output (WebM/Opus on
+  Chrome/Firefox, mislabelled MP4/AAC on iOS Safari) with the browser's
+  call-oriented echo cancellation/noise suppression/auto-gain on, which
+  audibly degraded quality; now captured raw via an AudioWorklet with that
+  processing disabled, resampled client-side, and encoded as WAV. Recordings
+  made before this change stay `.webm` in storage. (2026-10-26)
 - **Security / anonymization**: data must be highly secured, and speakers must not
   be identifiable in any way.
   - Decision: **metadata-level anonymization** — no name/DOB/contact info is ever
