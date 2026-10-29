@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { inviteUser, listUsers, updateUserProfile } from '../../api/admin'
+import { isAxiosError } from 'axios'
+import { deleteUser, inviteUser, listUsers, updateUserProfile } from '../../api/admin'
+import { useAuth } from '../../auth/AuthContext'
 import type { AdminUser, Role } from '../../types'
 
 const ALL_ROLES: Role[] = ['Collector', 'Annotator', 'Admin']
@@ -55,6 +57,9 @@ export default function UsersPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<EditDraft>({ name: '', phoneNumber: '', location: '', roles: [] })
   const [savingEdit, setSavingEdit] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [listError, setListError] = useState<string | null>(null)
+  const { user: me } = useAuth()
 
   useEffect(() => {
     refresh()
@@ -126,6 +131,27 @@ export default function UsersPage() {
     }
   }
 
+  async function handleDelete(u: AdminUser) {
+    const label = u.name ?? u.email ?? u.phoneNumber ?? 'this user'
+    if (
+      !window.confirm(
+        `Delete ${label}? They will no longer be able to sign in. Recordings and annotations they made are kept.`,
+      )
+    )
+      return
+    setListError(null)
+    setDeletingId(u.id)
+    try {
+      await deleteUser(u.id)
+      setUsers((prev) => prev.filter((x) => x.id !== u.id))
+    } catch (err) {
+      const msg = isAxiosError(err) && typeof err.response?.data === 'string' ? err.response.data : null
+      setListError(msg ?? 'Could not delete the user.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div>
       <h1 className="mb-4 text-lg font-semibold text-slate-900">Users</h1>
@@ -183,6 +209,8 @@ export default function UsersPage() {
           At least one of email or phone number is required (used to deliver the OTP code).
         </p>
       </form>
+
+      {listError && <p className="mb-3 text-sm text-red-600">{listError}</p>}
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading…</p>
@@ -268,13 +296,22 @@ export default function UsersPage() {
                     <td className="px-4 py-3 text-slate-500">
                       {new Date(u.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <button
                         onClick={() => startEdit(u)}
-                        className="rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700"
+                        className="mr-2 rounded-lg border border-slate-300 px-3 py-1 text-xs font-medium text-slate-700"
                       >
                         Edit
                       </button>
+                      {u.id !== me?.id && (
+                        <button
+                          onClick={() => handleDelete(u)}
+                          disabled={deletingId === u.id}
+                          className="rounded-lg border border-red-300 px-3 py-1 text-xs font-medium text-red-700 disabled:opacity-50"
+                        >
+                          {deletingId === u.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ),

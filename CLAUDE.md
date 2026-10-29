@@ -11,7 +11,8 @@
 ## What this app is
 
 A data collection tool for an ML project: children ages 3–12 are shown a photo and
-describe what they see out loud. The audio is recorded, transcribed/annotated, and
+describe what they see out loud, in Asante Twi (English words accepted where
+no Twi term is known; collection sites are schools and churches). The audio is recorded, transcribed/annotated, and
 exported as training data. (Age range widened from 5–10 to 3–12; enforced both
 client- and server-side on speaker creation. 2026-09-21)
 
@@ -44,6 +45,19 @@ client- and server-side on speaker creation. 2026-09-21)
   startup (if none exists) from `Bootstrap:AdminEmail`/`AdminPhoneNumber` config
   (`BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PHONE` in `.env`). See README "First
   login" section.
+  - OTP login reliability fixes (2026-10-29): email lookup is case-insensitive
+    and phone lookup ignores spaces/dashes/parens; any of a user's 3 most
+    recent unexpired codes is accepted (a re-sent code no longer invalidates
+    the earlier one); invite codes stay valid as long as the 7-day invite link
+    (were 5 min); OTP rate limit is per real client IP behind the proxy
+    (forwarded headers) at 30/min — it was one shared bucket of 5/min for
+    everyone; a wrong code no longer triggers the global 401 → reload-`/login`
+    handler.
+- **Delete user** (Admin, Users page; `DELETE /api/admin/users/{id}`): removes
+  the account (roles, refresh tokens, OTP codes, invites) so it can't sign in
+  and its email/phone can be re-invited. Recordings, speakers and annotations
+  the user made are kept (research data), still keyed by their user id. An
+  Admin can't delete themselves or the last active Admin. (2026-10-29)
 - **Speaker capture flow** (Collector):
   1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel. Gender is a
      dropdown restricted to Male/Female. Age is a dropdown of whole years 3–12

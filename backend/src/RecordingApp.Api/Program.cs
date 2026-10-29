@@ -2,12 +2,14 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RecordingApp.Api.Auth;
 using RecordingApp.Domain;
 using RecordingApp.Infrastructure;
+using RecordingApp.Infrastructure.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,21 +57,39 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod());
 });
 
+// The API runs behind a reverse proxy (Dokploy's Traefik), so without this
+// RemoteIpAddress is the proxy's address for every request and the per-IP OTP
+// rate limit below became one bucket shared by all users. ForwardLimit = 1
+// takes only the address the proxy itself appended, so a client can't spoof
+// its own X-Forwarded-For to dodge the limit.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddRateLimiter(options =>
 {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     // Partitioned per client IP so one client hammering the endpoint can't lock
-    // everyone else out of requesting/verifying OTP codes.
+    // everyone else out of requesting/verifying OTP codes. Generous enough for
+    // a team of collectors signing in together behind one school/church NAT;
+    // brute force is separately capped by Otp:MaxAttempts per code.
     options.AddPolicy("otp", httpContext => RateLimitPartition.GetFixedWindowLimiter(
         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         factory: _ => new FixedWindowRateLimiterOptions
         {
             Window = TimeSpan.FromMinutes(1),
-            PermitLimit = 5,
+            PermitLimit = 30,
             QueueLimit = 0,
         }));
 });
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 using (var scope = app.Services.CreateScope())
 {
@@ -88,8 +108,8 @@ using (var scope = app.Services.CreateScope())
         {
             var admin = new User
             {
-                Email = string.IsNullOrWhiteSpace(bootstrapEmail) ? null : bootstrapEmail.Trim(),
-                PhoneNumber = string.IsNullOrWhiteSpace(bootstrapPhone) ? null : bootstrapPhone.Trim(),
+                Email = Identifiers.NormalizeEmail(bootstrapEmail),
+                PhoneNumber = Identifiers.NormalizePhone(bootstrapPhone),
                 Status = UserStatus.Active,
                 ActivatedAt = DateTimeOffset.UtcNow,
             };

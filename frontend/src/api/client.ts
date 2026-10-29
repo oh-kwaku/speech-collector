@@ -68,7 +68,12 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    // A 401 from the sign-in endpoints themselves just means a wrong/expired
+    // code - let the page show its error instead of refreshing tokens and
+    // reloading /login, which wiped the form mid-sign-in.
+    const isAuthEndpoint =
+      typeof original?.url === 'string' && /^\/auth\/(otp|invites)\//.test(original.url)
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true
       refreshPromise ??= refreshTokens()
       const tokens = await refreshPromise
