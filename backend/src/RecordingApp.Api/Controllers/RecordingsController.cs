@@ -16,7 +16,8 @@ public class RecordingsController(
     RecordingAppDbContext db,
     IStorageService storage,
     ICurrentUser currentUser,
-    IConfiguration config) : ControllerBase
+    IConfiguration config,
+    ILogger<RecordingsController> logger) : ControllerBase
 {
     [HttpGet("photos/next")]
     [Authorize(Roles = "Collector")]
@@ -131,7 +132,7 @@ public class RecordingsController(
         db.Recordings.Add(recording);
         await db.SaveChangesAsync(ct);
 
-        var uploadUrl = storage.GetAudioUploadUrl(recording.S3Key, "audio/webm");
+        var uploadUrl = storage.GetAudioUploadUrl(recording.S3Key, "audio/wav");
         return Ok(new UploadUrlDto(recording.Id, uploadUrl, recording.S3Key));
     }
 
@@ -171,6 +172,44 @@ public class RecordingsController(
 
         var recordings = await query.OrderByDescending(r => r.CreatedAt).ToListAsync(ct);
         return Ok(recordings.Select(ToDto));
+    }
+
+    // Permanently removes a recording, all of its annotations (IRR ones
+    // included) and its audio object. The DB rows go first so a storage
+    // failure can only leave an orphaned object behind, never a recording
+    // pointing at missing audio.
+    [HttpDelete("recordings/{recordingId:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(Guid recordingId, CancellationToken ct)
+    {
+        var recording = await db.Recordings.Include(r => r.Annotations)
+            .FirstOrDefaultAsync(r => r.Id == recordingId, ct);
+        if (recording is null) return NotFound();
+
+        // Recording.CanonicalAnnotationId and Annotation.RecordingId point at
+        // each other, so clear the pointer and remove the annotations in one
+        // save, then the recording in a second - inside one transaction so a
+        // failure can't leave the recording without its annotations.
+        // (The InMemory test provider has no transactions.)
+        await using var tx = db.Database.IsRelational() ? await db.Database.BeginTransactionAsync(ct) : null;
+        recording.CanonicalAnnotationId = null;
+        db.Annotations.RemoveRange(recording.Annotations);
+        await db.SaveChangesAsync(ct);
+        db.Recordings.Remove(recording);
+        await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+
+        try
+        {
+            await storage.DeleteAudioAsync(recording.S3Key, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Deleted recording {RecordingId} but could not delete audio object {S3Key}",
+                recordingId, recording.S3Key);
+        }
+
+        return NoContent();
     }
 
     private RecordingDto ToDto(Recording r) => new(

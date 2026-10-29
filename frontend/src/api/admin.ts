@@ -22,6 +22,10 @@ export function updateUserProfile(
   return api.put<AdminUser>(`/admin/users/${userId}`, data)
 }
 
+export function deleteUser(userId: string) {
+  return api.delete(`/admin/users/${userId}`)
+}
+
 export function disableUser(userId: string) {
   return api.post(`/admin/users/${userId}/disable`)
 }

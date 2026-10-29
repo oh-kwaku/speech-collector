@@ -1,8 +1,13 @@
 import { useState } from 'react'
+import { isAxiosError } from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { requestOtp, verifyOtp } from '../api/auth'
 import { useAuth } from '../auth/AuthContext'
 import type { OtpChannel } from '../types'
+
+function isRateLimited(err: unknown) {
+  return isAxiosError(err) && err.response?.status === 429
+}
 
 export default function LoginPage() {
   const [channel, setChannel] = useState<OtpChannel>('Email')
@@ -14,15 +19,20 @@ export default function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
 
-  async function handleRequest(e: React.FormEvent) {
+  async function handleRequest(e: React.FormEvent | React.MouseEvent) {
     e.preventDefault()
     setError(null)
     setBusy(true)
     try {
       await requestOtp(identifier.trim(), channel)
+      setCode('')
       setStep('verify')
-    } catch {
-      setError('Could not send a code. Check the address/number and try again.')
+    } catch (err) {
+      setError(
+        isRateLimited(err)
+          ? 'Too many attempts. Wait a minute and try again.'
+          : 'Could not send a code. Check the address/number and try again.',
+      )
     } finally {
       setBusy(false)
     }
@@ -37,8 +47,12 @@ export default function LoginPage() {
       const { user, ...tokens } = res.data
       signIn(tokens, user)
       navigate('/', { replace: true })
-    } catch {
-      setError('That code is invalid or expired.')
+    } catch (err) {
+      setError(
+        isRateLimited(err)
+          ? 'Too many attempts. Wait a minute and try again.'
+          : 'That code is invalid or expired. Request a new one if needed.',
+      )
     } finally {
       setBusy(false)
     }
@@ -92,6 +106,7 @@ export default function LoginPage() {
             <input
               type="text"
               inputMode="numeric"
+              autoComplete="one-time-code"
               required
               placeholder="6-digit code"
               value={code}
@@ -105,6 +120,14 @@ export default function LoginPage() {
               className="w-full rounded-lg bg-slate-900 py-3 font-medium text-white disabled:opacity-50"
             >
               {busy ? 'Verifying…' : 'Verify & sign in'}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleRequest}
+              className="w-full text-sm text-slate-500 disabled:opacity-50"
+            >
+              Resend code
             </button>
             <button
               type="button"

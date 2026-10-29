@@ -92,4 +92,49 @@ public class OtpServiceTests
         // Third attempt is beyond MaxAttempts even with the correct code.
         Assert.False(await service.VerifyAsync(user.Id, code));
     }
+
+    [Fact]
+    public async Task VerifyAsync_EarlierCodeAfterResend_SucceedsAndConsumesBoth()
+    {
+        using var db = TestDbContextFactory.Create();
+        var user = new User { Email = "e@example.com", Status = UserStatus.Active };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var first = await service.IssueAsync(user.Id, OtpChannel.Email);
+        var second = await service.IssueAsync(user.Id, OtpChannel.Email);
+
+        Assert.True(await service.VerifyAsync(user.Id, first));
+        Assert.False(await service.VerifyAsync(user.Id, second));
+    }
+
+    [Fact]
+    public async Task VerifyAsync_CodeWithSpaces_Succeeds()
+    {
+        using var db = TestDbContextFactory.Create();
+        var user = new User { Email = "f@example.com", Status = UserStatus.Active };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var code = await service.IssueAsync(user.Id, OtpChannel.Email);
+
+        Assert.True(await service.VerifyAsync(user.Id, $" {code[..3]} {code[3..]} "));
+    }
+
+    [Fact]
+    public async Task IssueAsync_WithLifetime_OutlivesDefaultExpiry()
+    {
+        using var db = TestDbContextFactory.Create();
+        var user = new User { Email = "g@example.com", Status = UserStatus.Invited };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db, new OtpOptions { CodeLength = 6, ExpiryMinutes = 0, MaxAttempts = 5 });
+        var code = await service.IssueAsync(user.Id, OtpChannel.Email, lifetime: TimeSpan.FromDays(7));
+
+        await Task.Delay(10);
+        Assert.True(await service.VerifyAsync(user.Id, code));
+    }
 }

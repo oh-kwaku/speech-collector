@@ -47,6 +47,7 @@ export default function AcceptInvitePage() {
           <input
             type="text"
             inputMode="numeric"
+            autoComplete="one-time-code"
             required
             placeholder="6-digit code"
             value={code}

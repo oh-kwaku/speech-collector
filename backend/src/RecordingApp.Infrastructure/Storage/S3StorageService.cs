@@ -38,11 +38,14 @@ public class S3StorageService(IAmazonS3 s3Client, IOptions<S3Options> options) :
 
     public string GetAudioReadUrl(string s3Key) => Presign(_options.AudioBucket, s3Key, HttpVerb.GET, null);
 
+    public async Task DeleteAudioAsync(string s3Key, CancellationToken ct = default) =>
+        await s3Client.DeleteObjectAsync(_options.AudioBucket, s3Key, ct);
+
     public string BuildAudioKey(string speakerId, Guid sessionId, Guid recordingId, string gender)
     {
         var prefix = string.IsNullOrEmpty(_options.AudioPrefix) ? "" : $"{_options.AudioPrefix!.Trim('/')}/";
         var timestamp = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
-        var fileName = $"{speakerId}_{recordingId}_data_{gender}_{timestamp}.webm";
+        var fileName = $"{speakerId}_{recordingId}_data_{gender}_{timestamp}.wav";
         return $"{prefix}audio/{speakerId}/{sessionId}/{fileName}";
     }
 
