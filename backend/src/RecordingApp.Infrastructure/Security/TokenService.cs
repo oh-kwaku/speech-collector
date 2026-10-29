@@ -45,7 +45,8 @@ public class TokenService(RecordingAppDbContext db, IOptions<JwtOptions> options
             .Include(r => r.User).ThenInclude(u => u!.Roles)
             .FirstOrDefaultAsync(r => r.TokenHash == hash, ct);
 
-        if (stored is null || stored.RevokedAt != null || stored.ExpiresAt < DateTimeOffset.UtcNow || stored.User is null)
+        if (stored is null || stored.RevokedAt != null || stored.ExpiresAt < DateTimeOffset.UtcNow || stored.User is null
+            || stored.User.Status != UserStatus.Active)
             return null;
 
         stored.RevokedAt = DateTimeOffset.UtcNow;

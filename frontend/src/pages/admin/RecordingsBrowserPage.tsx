@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { listRecordings } from '../../api/annotations'
+import { isAxiosError } from 'axios'
+import { deleteRecording, listRecordings } from '../../api/annotations'
 import { syncPhotos } from '../../api/admin'
 import AudioPlayer from '../../components/AudioPlayer'
 import type { Recording } from '../../types'
@@ -9,6 +10,8 @@ export default function RecordingsBrowserPage() {
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     listRecordings()
@@ -29,6 +32,28 @@ export default function RecordingsBrowserPage() {
     }
   }
 
+  async function handleDelete(r: Recording) {
+    const annotations =
+      r.annotationCount > 0 ? ` and its ${r.annotationCount} annotation(s)` : ''
+    if (
+      !window.confirm(
+        `Permanently delete this recording of speaker ${r.speakerId}${annotations}? The audio file is deleted too. This can't be undone.`,
+      )
+    )
+      return
+    setDeleteError(null)
+    setDeletingId(r.id)
+    try {
+      await deleteRecording(r.id)
+      setRecordings((prev) => prev.filter((x) => x.id !== r.id))
+    } catch (err) {
+      const msg = isAxiosError(err) && typeof err.response?.data === 'string' ? err.response.data : null
+      setDeleteError(msg ?? 'Could not delete the recording.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
@@ -42,6 +67,7 @@ export default function RecordingsBrowserPage() {
         </button>
       </div>
       {syncMessage && <p className="mb-4 text-sm text-slate-500">{syncMessage}</p>}
+      {deleteError && <p className="mb-4 text-sm text-red-600">{deleteError}</p>}
 
       {loading ? (
         <p className="text-sm text-slate-500">Loading…</p>
@@ -73,6 +99,13 @@ export default function RecordingsBrowserPage() {
                 </span>
               </div>
               <AudioPlayer src={r.audioUrl} className="w-full sm:w-56" />
+              <button
+                onClick={() => handleDelete(r)}
+                disabled={deletingId === r.id}
+                className="self-start rounded-lg border border-red-300 px-3 py-1 text-xs font-medium text-red-700 disabled:opacity-50 sm:self-center"
+              >
+                {deletingId === r.id ? 'Deleting…' : 'Delete'}
+              </button>
             </li>
           ))}
         </ul>

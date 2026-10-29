@@ -16,5 +16,8 @@ public interface IStorageService
 
     string GetAudioReadUrl(string s3Key);
 
+    /// <summary>Deletes an audio object. Succeeds if the object doesn't exist.</summary>
+    Task DeleteAudioAsync(string s3Key, CancellationToken ct = default);
+
     string BuildAudioKey(string speakerId, Guid sessionId, Guid recordingId, string gender);
 }

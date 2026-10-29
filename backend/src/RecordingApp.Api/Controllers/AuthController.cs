@@ -98,11 +98,18 @@ public class AuthController(
         return Ok(UserDto.From(user));
     }
 
+    // Case-insensitive on email (mobile keyboards auto-capitalize the first
+    // letter) and ignores spaces/dashes/parentheses in phone numbers, on both
+    // sides, so rows stored before identifiers were normalized still match.
     private Task<User?> FindByIdentifierAsync(string identifier, CancellationToken ct)
     {
-        var normalized = identifier.Trim();
+        var email = Identifiers.NormalizeEmail(identifier);
+        var phone = Identifiers.NormalizePhone(identifier);
         return db.Users.Include(u => u.Roles).FirstOrDefaultAsync(
-            u => u.Email == normalized || u.PhoneNumber == normalized, ct);
+            u => (email != null && u.Email != null && u.Email.ToLower() == email)
+                || (phone != null && u.PhoneNumber != null
+                    && u.PhoneNumber.Replace(" ", "").Replace("-", "").Replace("(", "").Replace(")", "") == phone),
+            ct);
     }
 
     private async Task SendCodeAsync(User user, OtpChannel channel, string code, CancellationToken ct)

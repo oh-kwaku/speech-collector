@@ -11,7 +11,8 @@
 ## What this app is
 
 A data collection tool for an ML project: children ages 3–12 are shown a photo and
-describe what they see out loud. The audio is recorded, transcribed/annotated, and
+describe what they see out loud, in Asante Twi (English words accepted where
+no Twi term is known; collection sites are schools and churches). The audio is recorded, transcribed/annotated, and
 exported as training data. (Age range widened from 5–10 to 3–12; enforced both
 client- and server-side on speaker creation. 2026-09-21)
 
@@ -44,6 +45,30 @@ client- and server-side on speaker creation. 2026-09-21)
   startup (if none exists) from `Bootstrap:AdminEmail`/`AdminPhoneNumber` config
   (`BOOTSTRAP_ADMIN_EMAIL`/`BOOTSTRAP_ADMIN_PHONE` in `.env`). See README "First
   login" section.
+  - OTP login reliability fixes (2026-10-29): email lookup is case-insensitive
+    and phone lookup ignores spaces/dashes/parens; any of a user's 3 most
+    recent unexpired codes is accepted (a re-sent code no longer invalidates
+    the earlier one); invite codes stay valid as long as the 7-day invite link
+    (were 5 min); OTP rate limit is per real client IP behind the proxy
+    (forwarded headers) at 30/min — it was one shared bucket of 5/min for
+    everyone; a wrong code no longer triggers the global 401 → reload-`/login`
+    handler.
+- **Delete user** (Admin, Users page; `DELETE /api/admin/users/{id}`): removes
+  the account (roles, refresh tokens, OTP codes, invites) so it can't sign in
+  and its email/phone can be re-invited. Recordings, speakers and annotations
+  the user made are kept (research data), still keyed by their user id. An
+  Admin can't delete themselves or the last active Admin. (2026-10-29)
+- **Delete recording / annotation** (Admin only): (2026-10-29)
+  - Admin recordings browser has a Delete button per recording
+    (`DELETE /api/recordings/{id}`): permanently removes the recording, all
+    its annotations (IRR ones included) and its audio object in storage. DB
+    rows are deleted first, so a storage failure only leaves an orphaned
+    object (logged), never a recording with missing audio.
+  - All-annotations page has an admin-only Delete button per annotation
+    (`DELETE /api/annotations/{id}`): removes just that annotation and keeps
+    the recording, which returns to the annotation queue if it's now below
+    `RequiredAnnotatorCount`. If the deleted one was canonical, the
+    next-oldest remaining annotation becomes canonical (or none).
 - **Speaker capture flow** (Collector):
   1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel. Gender is a
      dropdown restricted to Male/Female. Age is a dropdown of whole years 3–12
@@ -158,8 +183,15 @@ client- and server-side on speaker creation. 2026-09-21)
 - **Photos**: already exist in an S3 bucket — users never upload them; the app
   only references/lists what's already there.
 - **Audio filenames**: stored objects are named
-  `{speakerId}_{audioId}_data_{gender}_{timestamp}.webm` (timestamp = upload-time
+  `{speakerId}_{audioId}_data_{gender}_{timestamp}.wav` (timestamp = upload-time
   UTC timestamp), under an `audio/{speakerId}/{sessionId}/` prefix. (2026-09-16)
+- **Audio format**: 16-bit PCM mono WAV at 16 kHz (`audio/wav`), the standard
+  ASR training input. Was browser-default MediaRecorder output (WebM/Opus on
+  Chrome/Firefox, mislabelled MP4/AAC on iOS Safari) with the browser's
+  call-oriented echo cancellation/noise suppression/auto-gain on, which
+  audibly degraded quality; now captured raw via an AudioWorklet with that
+  processing disabled, resampled client-side, and encoded as WAV. Recordings
+  made before this change stay `.webm` in storage. (2026-10-26)
 - **Security / anonymization**: data must be highly secured, and speakers must not
   be identifiable in any way.
   - Decision: **metadata-level anonymization** — no name/DOB/contact info is ever

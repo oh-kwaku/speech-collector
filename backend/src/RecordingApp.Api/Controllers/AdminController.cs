@@ -40,11 +40,12 @@ public class AdminController(
         var rolesError = ValidateRoles(dto.Roles, out var roles);
         if (rolesError is not null) return BadRequest(rolesError);
 
-        var email = dto.Email?.Trim();
-        var phone = dto.PhoneNumber?.Trim();
+        var email = Identifiers.NormalizeEmail(dto.Email);
+        var phone = Identifiers.NormalizePhone(dto.PhoneNumber);
 
         var exists = await db.Users.AnyAsync(
-            u => (email != null && u.Email == email) || (phone != null && u.PhoneNumber == phone), ct);
+            u => (email != null && u.Email != null && u.Email.ToLower() == email)
+                || (phone != null && u.PhoneNumber == phone), ct);
         if (exists) return Conflict("A user with that email or phone already exists.");
 
         var user = new User
@@ -73,7 +74,9 @@ public class AdminController(
         await db.SaveChangesAsync(ct);
 
         var channel = email != null ? OtpChannel.Email : OtpChannel.Sms;
-        var code = await otp.IssueAsync(user.Id, channel, ct);
+        // Valid as long as the invite link itself, not the short login-code
+        // expiry - invitees often open the link hours or days later.
+        var code = await otp.IssueAsync(user.Id, channel, ct, invite.ExpiresAt - DateTimeOffset.UtcNow);
         var webBaseUrl = config["App:WebBaseUrl"] ?? "https://localhost:5173";
         var link = $"{webBaseUrl}/invite?token={Uri.EscapeDataString(token)}";
         var body = $"You've been invited as {string.Join(" & ", roles)}. Open {link} and enter code {code} to activate your account.";
@@ -93,8 +96,8 @@ public class AdminController(
         var user = await db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null) return NotFound();
 
-        var phone = dto.PhoneNumber?.Trim();
-        if (!string.IsNullOrEmpty(phone))
+        var phone = Identifiers.NormalizePhone(dto.PhoneNumber);
+        if (phone != null)
         {
             var phoneTaken = await db.Users.AnyAsync(u => u.Id != userId && u.PhoneNumber == phone, ct);
             if (phoneTaken) return Conflict("A user with that phone number already exists.");
@@ -131,6 +134,33 @@ public class AdminController(
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null) return NotFound();
         user.Status = UserStatus.Disabled;
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    // Removes the account itself (roles, refresh tokens, pending OTP codes and
+    // invites) so it can no longer sign in and its email/phone can be invited
+    // again. Recordings, speakers and annotations the user made are research
+    // data and are kept - they still reference the user's id, which just no
+    // longer resolves to a name/contact.
+    [HttpDelete("users/{userId:guid}")]
+    public async Task<IActionResult> Delete(Guid userId, CancellationToken ct)
+    {
+        if (userId == currentUser.Id) return BadRequest("You can't delete your own account.");
+
+        var user = await db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null) return NotFound();
+
+        if (user.Roles.Any(r => r.Role == UserRole.Admin))
+        {
+            var otherAdmins = await db.Users.AnyAsync(
+                u => u.Id != userId && u.Status == UserStatus.Active && u.Roles.Any(r => r.Role == UserRole.Admin), ct);
+            if (!otherAdmins) return BadRequest("Can't delete the last active Admin.");
+        }
+
+        db.OtpCodes.RemoveRange(db.OtpCodes.Where(o => o.UserId == userId));
+        db.Invites.RemoveRange(db.Invites.Where(i => i.UserId == userId));
+        db.Users.Remove(user); // roles + refresh tokens cascade
         await db.SaveChangesAsync(ct);
         return NoContent();
     }

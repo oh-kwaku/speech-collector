@@ -132,6 +132,34 @@ public class AnnotationsController(
         return Ok(ToDto(annotation, users));
     }
 
+    // Admin-only removal of a single annotation (e.g. a bad or test entry),
+    // keeping the recording. Dropping below RequiredAnnotatorCount puts the
+    // recording back in the annotation queue. If it was the canonical one,
+    // the next-oldest remaining annotation takes over for export.
+    [HttpDelete("annotations/{annotationId:guid}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(Guid annotationId, CancellationToken ct)
+    {
+        var annotation = await db.Annotations
+            .Include(a => a.Recording).ThenInclude(r => r!.Annotations)
+            .FirstOrDefaultAsync(a => a.Id == annotationId, ct);
+        if (annotation is null) return NotFound();
+
+        var recording = annotation.Recording!;
+        if (recording.CanonicalAnnotationId == annotation.Id)
+        {
+            recording.CanonicalAnnotationId = recording.Annotations
+                .Where(a => a.Id != annotation.Id)
+                .OrderBy(a => a.CreatedAt)
+                .Select(a => (Guid?)a.Id)
+                .FirstOrDefault();
+        }
+
+        db.Annotations.Remove(annotation);
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     // Lets an Admin/adjudicator pick which of a recording's independent
     // annotations is used for the training-data export, after reviewing
     // disagreement in the IRR report below. Defaults to the first submitted
