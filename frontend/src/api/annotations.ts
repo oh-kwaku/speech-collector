@@ -5,6 +5,11 @@ export function listRecordings(params?: { annotated?: boolean }) {
   return api.get<Recording[]>('/recordings', { params })
 }
 
+// Admin-only: removes the recording, all its annotations and its audio file.
+export function deleteRecording(recordingId: string) {
+  return api.delete(`/recordings/${recordingId}`)
+}
+
 export function listAnnotations() {
   return api.get<Annotation[]>('/annotations')
 }
@@ -20,6 +25,12 @@ export function listAnnotationQueue() {
 
 export function createAnnotation(recordingId: string, text: string) {
   return api.post<Annotation>(`/recordings/${recordingId}/annotations`, { text })
+}
+
+// Admin-only: removes one annotation, keeping the recording (it returns to
+// the annotation queue if it's now short of its required annotators).
+export function deleteAnnotation(annotationId: string) {
+  return api.delete(`/annotations/${annotationId}`)
 }
 
 export function updateAnnotation(annotationId: string, text: string) {

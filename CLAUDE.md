@@ -58,6 +58,17 @@ client- and server-side on speaker creation. 2026-09-21)
   and its email/phone can be re-invited. Recordings, speakers and annotations
   the user made are kept (research data), still keyed by their user id. An
   Admin can't delete themselves or the last active Admin. (2026-10-29)
+- **Delete recording / annotation** (Admin only): (2026-10-29)
+  - Admin recordings browser has a Delete button per recording
+    (`DELETE /api/recordings/{id}`): permanently removes the recording, all
+    its annotations (IRR ones included) and its audio object in storage. DB
+    rows are deleted first, so a storage failure only leaves an orphaned
+    object (logged), never a recording with missing audio.
+  - All-annotations page has an admin-only Delete button per annotation
+    (`DELETE /api/annotations/{id}`): removes just that annotation and keeps
+    the recording, which returns to the annotation queue if it's now below
+    `RequiredAnnotatorCount`. If the deleted one was canonical, the
+    next-oldest remaining annotation becomes canonical (or none).
 - **Speaker capture flow** (Collector):
   1. Tap "New speaker" → inline form (Gender, Age) with Save/Cancel. Gender is a
      dropdown restricted to Male/Female. Age is a dropdown of whole years 3–12
