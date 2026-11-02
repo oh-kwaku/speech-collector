@@ -56,6 +56,9 @@ registerProcessor('pcm-capture', PcmCaptureProcessor)
 // Browser defaults for getUserMedia are tuned for video calls: echo
 // cancellation, noise suppression and auto gain all audibly degrade speech
 // (children's high-pitched voices especially) and aren't wanted in training data.
+const INSECURE_CONTEXT_ERROR =
+  'Microphone is unavailable: this page must be opened over HTTPS (or on localhost) to record audio.'
+
 const MIC_CONSTRAINTS: MediaTrackConstraints = {
   echoCancellation: false,
   noiseSuppression: false,
@@ -83,6 +86,12 @@ export function useAudioRecorder() {
   // looking at the photo instead of after they've already started talking.
   const ensureStream = useCallback(() => {
     if (streamRef.current?.active) return Promise.resolve(streamRef.current)
+    // navigator.mediaDevices only exists in a secure context (HTTPS or
+    // localhost). Reject rather than throw, so callers' .catch handles it
+    // instead of the error escaping and unmounting the whole page.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      return Promise.reject(new Error(INSECURE_CONTEXT_ERROR))
+    }
     if (!streamPromiseRef.current) {
       streamPromiseRef.current = navigator.mediaDevices
         .getUserMedia({ audio: MIC_CONSTRAINTS })
@@ -116,9 +125,11 @@ export function useAudioRecorder() {
   }, [])
 
   const prepare = useCallback(() => {
-    ensureStream().catch(() => {
-      // Swallow here — the same error will surface when the user actually
-      // taps Record, at which point showing it is actionable.
+    ensureStream().catch((e) => {
+      // No mic API at all can't be fixed by tapping Record, so say so now.
+      if (e instanceof Error && e.message === INSECURE_CONTEXT_ERROR) setError(INSECURE_CONTEXT_ERROR)
+      // Otherwise swallow here — the same error will surface when the user
+      // actually taps Record, at which point showing it is actionable.
     })
   }, [ensureStream])
 
@@ -139,8 +150,12 @@ export function useAudioRecorder() {
       sourceRef.current = source
       nodeRef.current = node
       setStatus('recording')
-    } catch {
-      setError('Microphone access was denied or is unavailable.')
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message === INSECURE_CONTEXT_ERROR
+          ? INSECURE_CONTEXT_ERROR
+          : 'Microphone access was denied or is unavailable.',
+      )
     }
   }, [ensureStream, ensureContext])
 
